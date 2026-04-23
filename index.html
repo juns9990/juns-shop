@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="theme-color" content="#1A2744"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="JUNS"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="description" content="JUNS 커스텀 루어 — 물때, 어종정보, 편의시설"/>
+<link rel="manifest" href="juns-manifest.json"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png"/>
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+<title>JUNS — 3D 커스텀 프린트</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,600;0,700;1,400&family=Jost:wght@300;400;500&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;word-break:keep-all;overflow-wrap:break-word}
+:root{
+  --n:#1A2744;--g:#B8965A;--g2:#D4AF78;
+  --bg:#FAFAF8;--bg2:#F0EDE8;--w:#FFFFFF;
+  --ink:#1C1917;--ink2:#44403C;--mu:#78716C;--br:#E0D8CE;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Jost',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;padding-bottom:80px;-webkit-text-size-adjust:100%}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:var(--g);border-radius:2px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spinSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .5s,transform .5s}
+.reveal.on{opacity:1;transform:none}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:100;background:rgba(250,250,248,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(184,150,90,.15);height:56px;display:flex;align-items:center;padding:0 24px;box-shadow:0 1px 12px rgba(0,0,0,.06)}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo-text{font-family:'Cormorant',serif;font-size:21px;font-weight:700;color:var(--n);letter-spacing:4px}
+.logo-sub{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:3px;color:var(--mu);margin-top:1px}
+.hdr-btn{margin-left:auto;background:var(--n);color:#FFF;padding:8px 16px;border:none;cursor:pointer;font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:1px;border-radius:2px;transition:background .2s}
+.hdr-btn:hover{background:#243360}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(253,250,245,.97);backdrop-filter:blur(12px);border-top:2px solid rgba(180,150,90,.18);display:grid;grid-template-columns:repeat(5,1fr);height:76px;box-shadow:0 -2px 20px rgba(0,0,0,.08)}
+.bi{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:transparent;border:none;cursor:pointer;padding:4px 0 0;transition:all .15s;position:relative}
+.bi::before{content:'';position:absolute;top:0;left:15%;right:15%;height:3px;background:transparent;border-radius:0 0 3px 3px;transition:background .15s}
+.bi.on::before{background:var(--ic)}
+.bi:active{transform:scale(.9)}
+.bi-icon{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;transition:all .15s}
+.bi.on .bi-icon{background:var(--ic-bg);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.bi-lbl{font-family:'Cormorant',serif;font-size:11px;font-weight:600;font-style:italic;color:#B0A898;transition:color .15s;line-height:1}
+.bi.on .bi-lbl{color:var(--ic);font-weight:500}
+.bi-seal{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;border:2px solid #D6C4A0;transition:all .15s;background:var(--bg)}
+.bi.on .bi-seal{border-color:var(--g);box-shadow:0 2px 12px rgba(184,150,90,.2);background:var(--w)}
+#bi-home{--ic:#A07830;--ic-bg:#FBF5EB}
+#bi-order{--ic:#0D7A62;--ic-bg:#E6F7F2}
+#bi-tide{--ic:#1258A0;--ic-bg:#E6EFF8}
+#bi-fish{--ic:#3D7808;--ic-bg:#EDF7E6}
+#bi-map{--ic:#A04C10;--ic-bg:#FBF0E6}
+
+/* PAGE SYSTEM */
+.pg{display:none;min-height:calc(100vh - 124px);animation:fadeUp .2s ease}
+.pg.on{display:block}
+/* display:none/block 방식 사용 */
+
+/* HOME */
+.hero{
+  background:linear-gradient(160deg,#F7F3EC 0%,#F2EDE3 50%,#EDE6D8 100%);
+  padding:44px 24px 48px;position:relative;overflow:hidden;
+  border-bottom:2px solid rgba(184,150,90,.18);
+}
+.hg{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(184,150,90,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(184,150,90,.07) 1px,transparent 1px);
+  background-size:56px 56px;
+}
+.hg2{
+  position:absolute;width:400px;height:400px;
+  background:radial-gradient(ellipse,rgba(184,150,90,.18) 0%,rgba(212,175,120,.06) 50%,transparent 70%);
+  top:-100px;right:-100px;pointer-events:none;
+}
+.hi{position:relative;z-index:1;max-width:520px;margin:0 auto}
+.htag{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:6px;color:var(--g);margin-bottom:18px;display:flex;align-items:center;gap:12px}
+.htag::before{content:'';width:28px;height:1px;background:linear-gradient(90deg,transparent,var(--g))}
+.hh1{font-family:'Cormorant',serif;font-size:clamp(34px,9vw,58px);font-weight:600;color:var(--n);line-height:1.08;margin-bottom:14px;letter-spacing:-.5px}
+.hh1 em{font-style:italic;color:var(--g);font-weight:400}
+.hsub{font-size:14px;color:#5C5448;line-height:1.9;margin-bottom:26px;font-weight:400;letter-spacing:.2px}
+.hbtns{display:flex;gap:10px;flex-wrap:wrap}
+.btn-g{background:var(--g);color:var(--n);padding:13px 32px;font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;border:none;cursor:pointer;border-radius:1px;transition:all .25s;text-decoration:none;display:inline-block;box-shadow:0 2px 20px rgba(184,150,90,.3)}
+.btn-g:hover{background:var(--g2);transform:translateY(-2px);box-shadow:0 6px 24px rgba(184,150,90,.4)}
+.btn-o{background:transparent;color:var(--n);padding:13px 20px;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:2px;border:1.5px solid rgba(26,39,68,.25);cursor:pointer;border-radius:1px;text-decoration:none;display:inline-block;transition:all .25s}
+.btn-o:hover{border-color:var(--g);color:var(--g)}
+.hstats{display:flex;margin-top:32px;padding-top:22px;border-top:1px solid rgba(184,150,90,.3)}
+.hstat{flex:1;border-right:1px solid rgba(26,39,68,.1);padding-right:12px}
+.hstat:last-child{border-right:none;padding-left:12px;padding-right:0}
+.hstat-n{font-family:'Cormorant',serif;font-size:24px;font-weight:700;color:var(--n);letter-spacing:-.5px}
+.hstat-l{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:2.5px;color:var(--mu);margin-top:3px}
+
+.sec{padding:48px 24px;background:var(--w)}
+.sec:nth-of-type(even){background:var(--bg)}
+.si{max-width:520px;margin:0 auto}
+.stag{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:4px;color:var(--g);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.stag::before{content:'';width:14px;height:1px;background:var(--g)}
+.sh{font-family:'Cormorant',serif;font-size:clamp(22px,5vw,32px);font-weight:700;color:var(--n);margin-bottom:6px}
+.ssub{font-size:12px;color:var(--mu);line-height:1.8;margin-bottom:18px}
+
+.pcard{background:var(--w);border:1px solid var(--br);overflow:hidden;border-radius:2px;box-shadow:0 4px 24px rgba(0,0,0,.08);transition:box-shadow .3s}
+.pcard:hover{box-shadow:0 8px 40px rgba(0,0,0,.12)}
+.pimg{height:220px;background:linear-gradient(145deg,#F5EDD8 0%,#F0E6CC 50%,#E8DAC0 100%);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.pimg-g{position:absolute;inset:0;background:radial-gradient(ellipse at 70% 30%,rgba(184,150,90,.08) 0%,transparent 60%),linear-gradient(180deg,rgba(18,88,160,.04) 0%,rgba(18,88,160,.12) 100%)}
+.pbody{padding:18px}
+.pbadge{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--g);border:1px solid rgba(184,150,90,.3);padding:2px 8px;display:inline-block;margin-bottom:10px;border-radius:2px}
+.pname{font-family:'Cormorant',serif;font-size:22px;font-weight:700;color:var(--n);margin-bottom:6px}
+.pdesc{font-size:12px;color:var(--mu);line-height:1.8;margin-bottom:14px}
+.olbl{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:3px;color:var(--mu);margin-bottom:5px}
+.otags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.otag{font-size:10px;padding:3px 8px;background:var(--bg);border:1px solid var(--br);font-family:'DM Mono',monospace;color:var(--ink2);border-radius:2px}
+.prow{display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid var(--br)}
+.pprice{font-family:'Cormorant',serif;font-size:24px;font-weight:700;color:var(--n)}
+
+.steps{display:flex;flex-direction:column}
+.step{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--br)}
+.step:last-child{border-bottom:none}
+.sn{width:28px;height:28px;min-width:28px;background:var(--bg2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant',serif;font-size:14px;font-weight:700;color:var(--n);transition:all .2s}
+.step:hover .sn{background:var(--n);color:var(--g)}
+.st{font-size:13px;font-weight:500;margin-bottom:3px}
+.sd{font-size:11px;color:var(--mu);line-height:1.7}
+
+.wsec{background:linear-gradient(145deg,#F5EDD8 0%,#EFE5CC 50%,#E8DAC0 100%);padding:48px 24px;position:relative;overflow:hidden}
+.wsec::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(180,150,90,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(180,150,90,.07) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+.wcards{display:flex;flex-direction:column;gap:12px;margin-top:20px}
+.wcard{background:rgba(255,255,255,.7);padding:22px 20px;border-radius:4px;border:1px solid rgba(180,150,90,.2);display:flex;align-items:flex-start;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,.05);backdrop-filter:blur(4px)}
+.wcard:hover{background:rgba(255,255,255,.85);box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.wi{flex-shrink:0;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
+.wt{font-family:'Cormorant',serif;font-size:19px;font-weight:700;color:var(--n);margin-bottom:5px}
+.wd{font-size:12px;color:#5C5448;line-height:1.8}
+
+.hfooter{background:var(--bg2);padding:20px;text-align:center;border-top:1px solid var(--br)}
+.hft{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--mu)}
+.hfv{font-family:'DM Mono',monospace;font-size:8px;color:var(--g);margin-top:4px}
+#manual-install{display:none}
+#ios-install-guide{font-size:11px;color:var(--mu);line-height:1.8;display:none;margin-bottom:10px}
+
+/* ORDER - 민트 */
+.opg{background:#EEF9F6;min-height:calc(100vh - 124px);padding:20px}
+.oi{max-width:480px;margin:0 auto}
+.phd{text-align:center;padding-bottom:16px;margin-bottom:18px;border-bottom:2px solid var(--hc,var(--br))}
+.phd-t{font-family:'Cormorant',serif;font-size:28px;font-weight:700;color:var(--n);margin-bottom:3px}
+.phd-s{font-family:'Jost',sans-serif;font-size:12px;letter-spacing:2px;color:var(--hc,var(--mu))}
+.opg .phd{--hc:#0D7A62}
+.ocard{background:var(--w);border:1px solid #B0E0D4;border-radius:4px;padding:18px;margin-bottom:10px;box-shadow:0 1px 6px rgba(13,122,98,.06)}
+.osec{margin-bottom:14px}
+.olb{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:#0D7A62;margin-bottom:10px}
+.oopts{display:flex;flex-wrap:wrap;gap:6px}
+.oopt{padding:10px 16px;font-family:'Jost',sans-serif;font-size:15px;cursor:pointer;border:1.5px solid var(--br);background:var(--w);color:var(--ink2);border-radius:3px;transition:all .15s}
+.oopt:hover{border-color:#0D7A62;color:#0D7A62}
+.oopt.on{background:#0D7A62;border-color:#0D7A62;color:#FFF;font-weight:500}
+.oqty{display:flex;align-items:center;border:1.5px solid var(--br);border-radius:3px;overflow:hidden}
+.oqb{width:44px;height:44px;background:var(--bg);border:none;color:var(--n);font-size:20px;cursor:pointer}
+.oqb:hover{background:var(--bg2)}
+.oqn{flex:1;text-align:center;font-family:'Cormorant',serif;font-size:28px;font-weight:600;color:#0D7A62}
+.oinp{width:100%;padding:13px 16px;background:var(--w);border:1.5px solid var(--br);color:var(--ink);font-family:'Jost',sans-serif;font-size:15px;box-sizing:border-box;border-radius:3px;transition:border .15s}
+.oinp:focus{outline:none;border-color:#0D7A62}
+.oinp::placeholder{color:#C0B8B0}
+.opricebox{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:#E0F5EE;border:1px solid #B0E0D4;border-radius:3px;margin-bottom:4px}
+.opricelbl{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:#0D7A62}
+.opriceval{font-family:'Cormorant',serif;font-size:28px;font-weight:700;color:#0A5A48}
+.oerr{font-size:13px;color:#DC2626;font-family:'DM Mono',monospace;margin-bottom:8px;display:none;padding:8px 12px;background:#FEF2F2;border-radius:3px}
+.osub{width:100%;padding:15px;background:#0D7A62;color:#FFF;border:none;font-family:'Jost',sans-serif;font-size:16px;font-weight:500;letter-spacing:1.5px;cursor:pointer;margin-top:8px;border-radius:3px;transition:background .2s}
+.osub:hover{background:#0A5A48}
+.odone{text-align:center;padding:48px 20px}
+.odone-ic{font-size:52px;margin-bottom:14px}
+.odone-t{font-family:'Cormorant',serif;font-size:30px;font-weight:700;color:#0D7A62;margin-bottom:8px}
+.odone-s{font-size:15px;color:var(--mu);line-height:1.7;margin-bottom:20px}
+.ores{background:transparent;border:1.5px solid #0D7A62;color:#0D7A62;padding:10px 24px;font-family:'Jost',sans-serif;font-size:11px;cursor:pointer;letter-spacing:1px;border-radius:3px}
+
+/* TIDE - 블루 */
+.tpg{background:#EEF4FB;min-height:calc(100vh - 124px);padding:20px}
+.tinner{max-width:520px;margin:0 auto}
+.tpg .phd{--hc:#1258A0}
+.wxcard{background:var(--w);border:1px solid #B0C8E8;border-radius:4px;padding:16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;box-shadow:0 1px 6px rgba(18,88,160,.06)}
+.wxtemp{font-family:'Cormorant',serif;font-size:46px;font-weight:700;color:#1258A0;line-height:1}
+.wxicon{font-size:38px}
+.wxdesc{font-size:15px;color:var(--mu);margin-top:6px}
+.wxdets{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.wxdet{font-family:'Jost',sans-serif;font-size:13px;color:var(--mu);background:var(--bg);padding:5px 10px;border-radius:10px}
+.ttcard{background:var(--w);border:1px solid #B0C8E8;border-radius:4px;padding:16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 6px rgba(18,88,160,.06)}
+.ttn{font-family:'Cormorant',serif;font-size:40px;font-weight:700;color:#1258A0;line-height:1}
+.ttlbl{font-size:14px;color:var(--mu);margin-top:5px}
+.tttype{font-family:'Cormorant',serif;font-size:26px;font-weight:700}
+.ttlunar{font-size:13px;color:var(--mu);margin-top:5px;font-family:'Jost',sans-serif}
+.tglbl{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:#1258A0;margin-bottom:10px}
+.tgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;background:var(--br)}
+.tg{background:var(--w);padding:10px 4px;text-align:center}
+.tg.tg-t{background:#D8EEFF;outline:2px solid #1258A0;outline-offset:-1px}
+.tg.tg-s{background:#E6F7EE}
+.tg.tg-n{background:#EEF2FF}
+.tgday{font-family:'Jost',sans-serif;font-size:10px;color:var(--mu)}
+.tgd{font-family:'Cormorant',serif;font-size:19px;font-weight:700;color:var(--n);line-height:1}
+.tg.tg-t .tgd{color:#1258A0}
+.tgt{font-size:11px;font-family:'Jost',sans-serif;color:var(--mu)}
+.tgtp{font-size:10px;font-family:'Jost',sans-serif;font-weight:600}
+.tg.tg-s .tgtp{color:#16A34A}
+.tg.tg-n .tgtp{color:#2563EB}
+.tleg{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.tl{display:flex;align-items:center;gap:6px;font-family:'Jost',sans-serif;font-size:13px;color:var(--mu)}
+.tldot{width:10px;height:10px;border-radius:2px}
+
+/* FISH - 그린 */
+.fpg{background:#F0F9E8;min-height:calc(100vh - 124px);padding:20px}
+.fi{max-width:520px;margin:0 auto}
+.fpg .phd{--hc:#3D7808}
+.fflbl{font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:#3D7808;margin-bottom:8px;letter-spacing:.5px}
+.fpills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.fpill{font-size:14px;padding:9px 18px;border:2px solid var(--br);background:var(--w);color:var(--ink2);cursor:pointer;font-family:'Jost',sans-serif;font-weight:500;border-radius:6px;transition:all .15s}
+.fpill:hover{border-color:#3D7808;color:#3D7808}
+.fpill.on{background:#3D7808;border-color:#3D7808;color:#FFF}
+.fmgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:14px}
+.fm{font-size:13px;padding:9px 4px;border:2px solid var(--br);background:var(--w);color:var(--ink2);cursor:pointer;font-family:'Jost',sans-serif;font-weight:500;text-align:center;border-radius:6px;transition:all .15s}
+.fm:hover{border-color:#3D7808;color:#3D7808}
+.fm.on{background:#3D7808;border-color:#3D7808;color:#FFF}
+.fbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.fbart{font-family:'Cormorant',serif;font-size:22px;font-weight:700;color:var(--n)}
+.fbarn{font-family:'Jost',sans-serif;font-size:13px;color:#3D7808;font-weight:500}
+.flist{display:flex;flex-direction:column;gap:10px;max-height:500px;overflow-y:auto}
+.fitem{background:var(--w);border:1px solid var(--br);padding:16px;display:flex;gap:14px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.fitem.ftai{border-left:4px solid #3D7808}
+.fico{font-size:36px;flex-shrink:0;line-height:1}
+.fname{font-family:'Cormorant',serif;font-size:22px;font-weight:700;color:var(--n);margin-bottom:5px}
+.ftags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.ftag{font-size:11px;padding:3px 9px;font-family:'Jost',sans-serif;font-weight:500;border:1.5px solid;border-radius:4px}
+.ftag-t{color:#3D7808;border-color:rgba(61,120,8,.3);background:#F0F9E8}
+.ftag-b{color:#1258A0;border-color:rgba(18,88,160,.3);background:#EEF4FB}
+.ftag-r{color:#BE185D;border-color:rgba(190,24,93,.3);background:#FDF2F8}
+.ftag-br{color:#6D28D9;border-color:rgba(109,40,217,.3);background:#F5F3FF}
+.fdesc{font-size:13px;color:var(--mu);line-height:1.75}
+.fmbar{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin-top:8px}
+.fmb{
+  display:flex;align-items:center;justify-content:center;
+  height:26px;border-radius:5px;
+  background:var(--bg2);border:1.5px solid transparent;
+  font-family:'Jost',sans-serif;font-size:11px;
+  color:rgba(61,120,8,.4);font-weight:600;
+  transition:all .2s;
+}
+.fmb.on{
+  background:rgba(61,120,8,.1);
+  border-color:rgba(61,120,8,.25);
+  color:rgba(61,120,8,.65);
+}
+.fmb.pk{
+  background:#3D7808;
+  border-color:#2D5A06;
+  color:#FFF;
+  font-weight:700;
+  box-shadow:0 1px 4px rgba(61,120,8,.3);
+}
+.fnote{margin-top:8px;padding:9px 12px;background:#EDF7E2;border-left:3px solid #3D7808;font-size:13px;color:#2A5600;line-height:1.75;border-radius:0 4px 4px 0;font-weight:500}
+.fempty{padding:32px;text-align:center;font-family:'Cormorant',serif;font-size:16px;color:var(--mu)}
+
+/* MAP - 오렌지 */
+.mpg{background:#FEF6EE;min-height:calc(100vh - 124px);padding:20px}
+.mi{max-width:520px;margin:0 auto}
+.mpg .phd{--hc:#A04C10}
+.mgps{width:100%;padding:15px;background:var(--w);border:1.5px solid #E8C4A0;color:#A04C10;font-family:'Jost',sans-serif;font-size:15px;letter-spacing:1px;cursor:pointer;border-radius:3px;font-weight:500;margin-bottom:10px;transition:all .2s}
+.mgps:hover{background:#FFF0E6;border-color:#A04C10}
+.mgps.done{background:#FFF0E6;border-color:#A04C10;color:#7A3008}
+.mcats{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.mcat{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 12px;border:2px solid var(--br);
+  background:var(--w);color:var(--mu);cursor:pointer;
+  font-family:'Cormorant',serif;font-size:11px;font-style:italic;font-weight:600;
+  border-radius:8px;transition:all .15s;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);
+  min-width:52px;
+}
+.mcat:hover{border-color:#A04C10;color:#A04C10;box-shadow:0 2px 8px rgba(160,76,16,.12)}
+.mcat.on{background:#FFF0E6;border-color:#A04C10;color:#7A3008;box-shadow:0 2px 10px rgba(160,76,16,.15)}
+.mcat-icon{display:block;width:34px;height:34px}
+.mcat-lbl{display:block;line-height:1;font-size:12px}
+.mbox{width:100%;height:320px;background:var(--bg2);border:1.5px solid var(--br);border-radius:4px;margin-bottom:12px;overflow:hidden;position:relative}
+#kakao-map-el{width:100%;height:100%}
+.mrbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.mrt{font-family:'Cormorant',serif;font-size:22px;font-weight:700;color:var(--n)}
+.mrn{font-family:'Jost',sans-serif;font-size:14px;color:#A04C10}
+.mlist{display:flex;flex-direction:column;gap:5px;max-height:280px;overflow-y:auto}
+.mitem{background:var(--w);border:1px solid var(--br);padding:13px;display:flex;align-items:center;gap:12px;cursor:pointer;border-radius:3px;transition:background .15s}
+.mitem:hover{background:var(--bg);border-color:#E8C4A0}
+.mic{font-size:32px;flex-shrink:0}
+.mname{font-size:17px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'Cormorant',serif}
+.maddr{font-size:13px;color:var(--mu);font-family:'Jost',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mdist{font-family:'Cormorant',serif;font-size:16px;color:#A04C10;flex-shrink:0;margin-right:6px;font-weight:700}
+.mnav{font-size:13px;padding:8px 13px;background:#A04C10;color:#FFF;border:none;cursor:pointer;font-family:'Jost',sans-serif;font-weight:500;flex-shrink:0;border-radius:3px}
+.mempty{padding:28px;text-align:center;color:var(--mu);font-family:'Cormorant',serif;font-size:15px}
+
+/* ── INFO BAR ── */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.blink{animation:blink 1s infinite}
+.info-bar{
+  background:linear-gradient(90deg,#FBF5EB 0%,#F7F0E0 50%,#F3EBD5 100%);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid rgba(184,150,90,.12);
+  border-bottom:2px solid rgba(184,150,90,.2);
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  width:100%;
+}
+.ib{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:11px 4px;gap:3px;
+  border-right:1px solid rgba(180,150,90,.1);
+  position:relative;min-width:0;overflow:hidden;
+}
+.ib:last-child{border-right:none}
+.ib::before{
+  content:'';position:absolute;bottom:0;left:20%;right:20%;
+  height:2px;border-radius:2px 2px 0 0;
+}
+.ib:nth-child(1)::before{background:rgba(184,150,90,.5)}
+.ib:nth-child(2)::before{background:rgba(18,88,160,.45)}
+.ib:nth-child(3)::before{background:rgba(200,120,30,.5)}
+.ib:nth-child(4)::before{background:rgba(61,120,8,.5)}
+.ib-lbl{
+  font-family:'Cormorant',serif;font-size:10px;font-weight:600;
+  color:rgba(120,90,40,.6);letter-spacing:1px;font-style:italic;
+}
+.ib-val{
+  font-family:'Cormorant',serif;font-size:22px;font-weight:700;
+  color:#2A1F0A;line-height:1;white-space:nowrap;
+}
+.ib-sub{
+  font-family:'Jost',sans-serif;font-size:10px;font-weight:400;
+  color:#7A6840;white-space:nowrap;
+}
+
+/* MOBILE */
+@media(max-width:480px){
+  body{padding-bottom:76px}
+  .logo-sub{display:none}
+  .hdr-btn{padding:6px 12px;font-size:10px}
+  .hero{padding:32px 18px 36px}
+  .hh1{font-size:clamp(28px,8vw,38px)!important}
+  .hsub{font-size:12px}
+  .btn-g,.btn-o{padding:10px 16px;font-size:11px}
+  .hstats{margin-top:20px;padding-top:14px}
+  .hstat-n{font-size:19px}
+  .sec{padding:32px 16px}
+  .sh{font-size:22px}
+  .wsec{padding:32px 16px}
+  .opg,.tpg,.fpg,.mpg{padding:16px}
+  .wxtemp,.ttn{font-size:34px}
+  .tgd{font-size:17px}
+  .mbox{height:260px}
+  .bnav{height:64px}
+  .bi-lbl{font-size:7px}
+  .bi-icon,.bi-seal{width:34px;height:34px}
+}
+@media(max-width:340px){
+  .hh1{font-size:26px!important}
+  .bi-lbl{display:none}
+  .bnav{height:56px}
+}
+/* ── PC / 태블릿 ── */
+@media(min-width:640px){
+  body{padding-bottom:88px}
+  /* 전체 너비 확장 */
+  .hi,.si,.oi,.tinner,.fi,.mi{max-width:900px}
+  /* 정보바 PC 크기 */
+  /* 헤더 */
+  header{height:68px;padding:0 48px}
+  .logo-text{font-size:26px;letter-spacing:6px}
+  .logo-sub{display:block;font-size:9px}
+  .hdr-btn{padding:11px 28px;font-size:14px}
+  /* 정보바 */
+  .ib{padding:18px 12px;gap:5px}
+  .ib-val{font-size:28px}
+  .ib-lbl{font-size:12px;letter-spacing:2px}
+  .ib-sub{font-size:13px}
+  /* Hero */
+  .hero{padding:72px 48px 80px}
+  .hh1{font-size:clamp(48px,5vw,72px)!important;letter-spacing:-1px}
+  .hsub{font-size:17px;margin-bottom:32px}
+  .btn-g{padding:16px 44px;font-size:14px}
+  .btn-o{padding:16px 32px;font-size:14px}
+  .hstat-n{font-size:32px}
+  .hstat-l{font-size:9px}
+  /* 섹션 */
+  .sec{padding:72px 48px}
+  .wsec{padding:72px 48px}
+  .sh{font-size:clamp(28px,3vw,40px)}
+  .ssub{font-size:15px}
+  .stag{font-size:10px}
+  /* 제품카드 */
+  .pimg{height:280px}
+  .pname{font-size:28px}
+  .pdesc{font-size:15px}
+  .otag{font-size:13px;padding:5px 12px}
+  .olbl{font-size:10px}
+  .pprice{font-size:32px}
+  /* 주문방법 */
+  .st{font-size:16px}
+  .sd{font-size:14px}
+  .sn{width:36px;height:36px;font-size:18px}
+  /* 왜JUNS */
+  .wt{font-size:22px}
+  .wd{font-size:14px}
+  .wi{width:72px;height:72px}
+  .wi svg{width:72px;height:72px}
+  /* 주문 */
+  .opg{padding:36px 48px}
+  .phd-t{font-size:32px}
+  .phd-s{font-size:13px}
+  .olb{font-size:15px}
+  .oopt{font-size:17px;padding:13px 22px}
+  .oinp{font-size:17px;padding:15px 20px}
+  .oqb{width:52px;height:52px;font-size:24px}
+  .oqn{font-size:32px}
+  .opricelbl{font-size:15px}
+  .opriceval{font-size:34px}
+  .osub{font-size:18px;padding:18px;letter-spacing:2px}
+  /* 물때 */
+  .tpg{padding:36px 48px}
+  .wxcard,.ttcard{padding:24px}
+  .wxtemp{font-size:60px}
+  .wxdesc{font-size:18px}
+  .wxdet{font-size:16px;padding:7px 14px}
+  .ttn{font-size:52px}
+  .ttlbl{font-size:17px}
+  .tttype{font-size:34px}
+  .ttlunar{font-size:15px}
+  .tglbl{font-size:15px}
+  .tgd{font-size:22px}
+  .tgt{font-size:13px}
+  .tgtp{font-size:12px}
+  .tgday{font-size:12px}
+  .tg{padding:12px 5px}
+  .tl{font-size:15px}
+  /* 어종 */
+  .fpg{padding:36px 48px}
+  .fflbl{font-size:16px}
+  .fpill{font-size:17px;padding:11px 22px}
+  .fmgrid{gap:7px}
+  .fm{font-size:16px;padding:11px 6px}
+  .fbart{font-size:26px}
+  .fbarn{font-size:15px}
+  .fitem{padding:20px}
+  .fico{font-size:46px}
+  .fname{font-size:28px}
+  .ftag{font-size:14px;padding:5px 12px}
+  .fdesc{font-size:15px}
+  .fnote{font-size:15px;padding:12px 16px}
+  .fmb{height:30px;font-size:13px}
+  /* 편의 */
+  .mpg{padding:36px 48px}
+  .mgps{font-size:17px;padding:18px}
+  .mcats{gap:10px}
+  .mcat{min-width:78px;padding:14px 16px;border-radius:10px}
+  .mcat-icon{width:48px;height:48px}
+  .mcat-lbl{font-size:15px}
+  .mbox{height:460px}
+  .mname{font-size:22px}
+  .maddr{font-size:15px}
+  .mdist{font-size:20px}
+  .mnav{font-size:15px;padding:10px 16px}
+  .mrbar{margin-bottom:14px}
+  .mrt{font-size:24px}
+  .mrn{font-size:15px}
+  .mitem{padding:18px}
+  .mic{font-size:36px}
+  /* 하단 네비 */
+  .bnav{height:84px;max-width:1200px;left:50%;transform:translateX(-50%)}
+  .bi-icon,.bi-seal{width:56px;height:56px}
+  .bi-lbl{font-size:13px}
+}
+@media(min-width:1024px){
+  .hi,.si,.oi,.tinner,.fi,.fi,.mi{max-width:1000px}
+  .mbox{height:540px}
+  .hh1{font-size:clamp(56px,5vw,80px)!important}
+  .mcats{flex-wrap:nowrap}
+  .mcat{flex:1}
+}
+
+</style>
+</head>
+<body>
+
+
+<svg width="0" height="0" style="position:absolute;overflow:hidden">
+  <defs>
+    <filter id="np1" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="turbulence" baseFrequency="0.035 0.07" numOctaves="2" seed="11" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<header>
+  <a class="logo" href="#" onclick="goPage('home');return false">
+    <svg width="28" height="28" viewBox="0 0 60 60">
+      <circle cx="30" cy="30" r="26" fill="none" stroke="#B8965A" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <circle cx="30" cy="30" r="18" fill="#1A2744"/>
+      <circle cx="30" cy="30" r="18" fill="none" stroke="#B8965A" stroke-width="1"/>
+      <text x="30" y="36" text-anchor="middle" font-family="Cormorant,serif" font-size="17" font-weight="700" fill="#B8965A">J</text>
+    </svg>
+    <div><div class="logo-text">JUNS</div><div class="logo-sub">3D CUSTOM PRINT</div></div>
+  </a>
+  <button class="hdr-btn" onclick="goPage('order')">주문하기</button>
+</header>
+
+<!-- Install Banner -->
+<div id="install-banner" style="display:none;position:fixed;bottom:76px;left:0;right:0;z-index:190;background:var(--n);border-top:2px solid var(--g);padding:14px 20px;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,.2)">
+  <div style="flex:1">
+    <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:3px;color:rgba(184,150,90,.9);margin-bottom:4px">JUNS APP</div>
+    <div style="font-size:14px;font-family:'Jost',sans-serif;color:#FFF;font-weight:500">홈 화면에 추가</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px">앱처럼 빠르게 사용하세요</div>
+  </div>
+  <button id="install-btn" style="background:var(--g);color:var(--n);border:none;padding:10px 18px;font-family:'Jost',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:4px;white-space:nowrap">📲 설치</button>
+  <button id="install-x" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:22px;cursor:pointer;padding:0 4px;line-height:1">×</button>
+</div>
+
+<!-- HOME -->
+<div class="pg on" id="pg-home">
+  <!-- INFO BAR -->
+  <div class="info-bar" id="pg-home-bar">
+    <div class="ib">
+      <div class="ib-lbl">DATE</div>
+      <div class="ib-val" id="ib-date">--.--.--</div>
+      <div class="ib-sub" id="ib-day">--요일</div>
+    </div>
+    <div class="ib">
+      <div class="ib-lbl">TIME</div>
+      <div class="ib-val" id="ib-time">--<span class="blink">:</span>--</div>
+      <div class="ib-sub">실시간</div>
+    </div>
+    <div class="ib">
+      <div class="ib-lbl">날씨</div>
+      <div class="ib-val" id="ib-wx">--°</div>
+      <div class="ib-sub" id="ib-wxd">로딩중</div>
+    </div>
+    <div class="ib">
+      <div class="ib-lbl">물때</div>
+      <div class="ib-val" id="ib-tide">--물</div>
+      <div class="ib-sub" id="ib-tide-s">음력 --일</div>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="hg"></div><div class="hg2"></div>
+    <div class="hi">
+      <p class="htag reveal">3D CUSTOM PRINT</p>
+      <h1 class="hh1 reveal">당신만을 위한<br><em>커스텀 루어</em></h1>
+      <p class="hsub reveal">원하는 무게, 원하는 컬러.<br>3D 프린팅으로 제작하는 나만의 커스텀 루어.</p>
+      <div class="hbtns reveal">
+        <a class="btn-g" href="#" onclick="goPage('order');return false">지금 주문하기</a>
+        <a class="btn-o" href="#prod-s">제품 보기</a>
+      </div>
+      <div class="hstats reveal">
+        <div class="hstat"><div class="hstat-n">100%</div><div class="hstat-l">커스텀 제작</div></div>
+        <div class="hstat"><div class="hstat-n">A급</div><div class="hstat-l">품질 보증</div></div>
+        <div class="hstat"><div class="hstat-n">5일</div><div class="hstat-l">평균 납기</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="prod-s">
+    <div class="si">
+      <div class="reveal"><p class="stag">PRODUCTS</p><h2 class="sh">제품</h2><p class="ssub">커스텀 루어 제작</p></div>
+      <div class="pcard reveal">
+        <div class="pimg">
+          <div class="pimg-g"></div>
+          <svg viewBox="0 0 400 240" width="100%" height="100%" style="position:absolute;inset:0" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="pp"><feTurbulence type="turbulence" baseFrequency="0.035 0.065" numOctaves="2" seed="5" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.6" xChannelSelector="R" yChannelSelector="G"/></filter>
+              <filter id="pp2"><feTurbulence type="turbulence" baseFrequency="0.04 0.09" numOctaves="2" seed="12" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="2" xChannelSelector="R" yChannelSelector="G"/></filter>
+              <filter id="pp3"><feTurbulence type="turbulence" baseFrequency="0.03 0.06" numOctaves="2" seed="19" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter>
+              <filter id="paperBg2"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" result="n"/><feColorMatrix type="matrix" values="0 0 0 0 0.97  0 0 0 0 0.95  0 0 0 0 0.90  0 0 0 0.4 0" in="n"/></filter>
+              <pattern id="hh1" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(40)">
+                <line x1="0" y1="0" x2="0" y2="5" stroke="rgba(0,0,0,.05)" stroke-width=".6"/>
+              </pattern>
+            </defs>
+
+            <!-- 종이 배경 -->
+            <rect width="400" height="240" fill="#F6EFE0"/>
+            <rect width="400" height="240" filter="url(#paperBg2)" opacity=".5"/>
+            <rect x="200" y="0" width="200" height="240" fill="url(#hh1)"/>
+            <rect x="0" y="120" width="400" height="120" fill="url(#hh1)" opacity=".5"/>
+
+            <!-- 수면 워시 (청색 수채화) -->
+            <g filter="url(#pp3)">
+              <ellipse cx="200" cy="195" rx="230" ry="55" fill="rgba(80,140,200,.2)"/>
+              <ellipse cx="180" cy="210" rx="210" ry="40" fill="rgba(60,120,185,.15)"/>
+            </g>
+            <!-- 수평선 -->
+            <g filter="url(#pp2)" fill="none" stroke-linecap="round">
+              <line x1="0" y1="152" x2="400" y2="154" stroke="rgba(60,120,185,.3)" stroke-width="1.8"/>
+              <line x1="0" y1="158" x2="400" y2="160" stroke="rgba(60,120,185,.18)" stroke-width="1"/>
+            </g>
+            <!-- 파도 -->
+            <g filter="url(#pp2)" fill="none">
+              <path d="M0 162 Q35 157 70 162 Q105 167 140 162 Q175 157 210 162 Q245 167 280 162 Q315 157 360 162 Q380 166 400 162" stroke="rgba(60,120,185,.25)" stroke-width="1.3" stroke-linecap="round"/>
+            </g>
+
+            <!-- 낚싯줄 -->
+            <g filter="url(#pp)">
+              <line x1="248" y1="0" x2="230" y2="62" stroke="rgba(80,60,30,.3)" stroke-width="1" stroke-dasharray="4 3"/>
+              <line x1="230" y1="62" x2="226" y2="88" stroke="rgba(80,60,30,.2)" stroke-width=".8" stroke-dasharray="3 4"/>
+            </g>
+
+            <!-- 메탈지그 (메인 루어) — 색연필 스케치 -->
+            <g transform="translate(175, 68)" filter="url(#pp)">
+              <!-- 지그 몸통 — 길고 유선형 (은색/청색 계열) -->
+              <!-- 외곽 어두운 면 -->
+              <path d="M18 0 Q32 8 34 35 Q32 55 25 68 Q20 78 18 85 Q16 78 11 68 Q4 55 2 35 Q4 8 18 0Z"
+                    fill="rgba(80,100,160,.2)" stroke="rgba(60,80,150,.55)" stroke-width="2.2" stroke-linejoin="round"/>
+              <!-- 몸통 메인 (은색) -->
+              <path d="M18 0 Q30 8 32 35 Q30 55 24 68 Q20 77 18 84 Q16 77 12 68 Q6 55 4 35 Q6 8 18 0Z"
+                    fill="rgba(200,215,240,.45)" stroke="rgba(140,160,210,.4)" stroke-width="1.2"/>
+              <!-- 빛 반사 하이라이트 (왼쪽) -->
+              <path d="M11 4 Q8 20 8 38 Q9 52 12 64"
+                    stroke="rgba(255,255,255,.5)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <path d="M10 6 Q7 22 7 40 Q8 54 11 65"
+                    stroke="rgba(255,255,255,.25)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+              <!-- 홀로그램 가로 줄무늬 (메탈지그 특징) -->
+              <g stroke-linecap="round" opacity=".6">
+                <line x1="6" y1="16" x2="30" y2="16" stroke="rgba(180,200,255,.5)" stroke-width="1"/>
+                <line x1="5" y1="24" x2="31" y2="24" stroke="rgba(200,160,255,.4)" stroke-width=".8"/>
+                <line x1="4" y1="32" x2="32" y2="32" stroke="rgba(160,220,180,.45)" stroke-width="1"/>
+                <line x1="4" y1="40" x2="31" y2="40" stroke="rgba(180,200,255,.4)" stroke-width=".8"/>
+                <line x1="5" y1="48" x2="30" y2="48" stroke="rgba(200,160,255,.35)" stroke-width=".8"/>
+                <line x1="6" y1="56" x2="28" y2="56" stroke="rgba(160,220,180,.35)" stroke-width=".7"/>
+              </g>
+              <!-- 눈 -->
+              <circle cx="18" cy="10" r="5" fill="rgba(240,240,250,.9)" stroke="rgba(60,80,150,.5)" stroke-width="1.5"/>
+              <circle cx="18" cy="10" r="3.5" fill="rgba(15,10,5,.85)"/>
+              <circle cx="19.5" cy="8.5" r="1.8" fill="rgba(255,255,255,.95)"/>
+              <circle cx="20" cy="8" r=".7" fill="rgba(255,255,255,.6)"/>
+              <!-- 꼬리 부분 가는 목 -->
+              <path d="M14 82 Q18 86 22 82 L24 90 Q18 94 12 90Z"
+                    fill="rgba(160,180,220,.3)" stroke="rgba(80,100,160,.5)" stroke-width="1.5"/>
+              <!-- 윤곽 진한 선 (색연필) -->
+              <path d="M18 0 Q32 8 34 35 Q32 55 25 68 Q20 78 18 85 Q16 78 11 68 Q4 55 2 35 Q4 8 18 0Z"
+                    fill="none" stroke="rgba(50,70,140,.35)" stroke-width="1"/>
+            </g>
+
+            <!-- 바늘 (어시스트 훅) -->
+            <g transform="translate(185, 158)" filter="url(#pp2)">
+              <!-- 연결줄 (어시스트 코드) -->
+              <line x1="8" y1="0" x2="5" y2="12" stroke="rgba(220,40,40,.65)" stroke-width="1.8" stroke-linecap="round"/>
+              <line x1="8" y1="0" x2="11" y2="12" stroke="rgba(220,40,40,.65)" stroke-width="1.8" stroke-linecap="round"/>
+              <!-- 훅 왼쪽 -->
+              <path d="M5 12 Q2 20 4 28 Q7 34 5 30" stroke="rgba(100,110,130,.7)" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <!-- 훅 오른쪽 -->
+              <path d="M11 12 Q14 20 12 28 Q9 34 11 30" stroke="rgba(100,110,130,.7)" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <!-- 바늘 반짝 -->
+              <circle cx="5" cy="30" r="1.5" fill="rgba(200,210,230,.7)"/>
+              <circle cx="11" cy="30" r="1.5" fill="rgba(200,210,230,.7)"/>
+            </g>
+
+            <!-- 참돔 (오른쪽 배경) -->
+            <g transform="translate(28, 78)" filter="url(#pp)">
+              <path d="M22 48 L5 32 L10 48 L5 64 Z" fill="rgba(190,48,35,.7)"/>
+              <ellipse cx="68" cy="48" rx="55" ry="30" fill="rgba(210,60,42,.4)"/>
+              <ellipse cx="65" cy="48" rx="50" ry="27" fill="rgba(225,72,55,.3)"/>
+              <ellipse cx="62" cy="56" rx="38" ry="16" fill="rgba(255,220,195,.2)"/>
+              <path d="M38 32 Q48 18 62 15 Q76 12 90 20 L88 32Z" fill="rgba(195,50,38,.45)"/>
+              <g stroke="rgba(200,55,42,.1)" stroke-width=".7" fill="none">
+                <path d="M32 42 Q37 37 42 42"/><path d="M42 42 Q47 37 52 42"/>
+                <path d="M52 42 Q57 37 62 42"/><path d="M62 42 Q67 37 72 42"/>
+                <path d="M34 50 Q39 45 44 50"/><path d="M44 50 Q49 45 54 50"/>
+                <path d="M54 50 Q59 45 64 50"/><path d="M64 50 Q69 45 74 50"/>
+              </g>
+              <path d="M108 30 Q113 48 108 66" stroke="rgba(160,35,25,.5)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              <circle cx="120" cy="44" r="7.5" fill="rgba(240,240,240,.9)" stroke="rgba(155,38,28,.4)" stroke-width="1.2"/>
+              <circle cx="120" cy="44" r="5.5" fill="rgba(15,10,5,.85)"/>
+              <circle cx="121.5" cy="42.5" r="2.5" fill="rgba(255,255,255,.95)"/>
+              <ellipse cx="68" cy="48" rx="55" ry="30" fill="none" stroke="rgba(165,38,28,.25)" stroke-width="1.2"/>
+            </g>
+
+            <!-- 수면 파문 -->
+            <g filter="url(#pp2)" fill="none" stroke-linecap="round">
+              <ellipse cx="228" cy="68" rx="16" ry="4" stroke="rgba(60,120,185,.28)" stroke-width="1.1"/>
+              <ellipse cx="228" cy="68" rx="26" ry="6.5" stroke="rgba(60,120,185,.16)" stroke-width=".8"/>
+              <ellipse cx="228" cy="68" rx="36" ry="9" stroke="rgba(60,120,185,.08)" stroke-width=".6"/>
+            </g>
+
+            <!-- 물방울 튀김 -->
+            <g filter="url(#pp2)" fill="none" stroke-linecap="round">
+              <path d="M215 63 Q212 57 214 55" stroke="rgba(60,120,185,.3)" stroke-width=".9"/>
+              <path d="M241 63 Q244 57 242 54" stroke="rgba(60,120,185,.3)" stroke-width=".9"/>
+              <path d="M220 61 Q218 53 220 51" stroke="rgba(60,120,185,.22)" stroke-width=".7"/>
+            </g>
+
+            <!-- 배경 기포 -->
+            <circle cx="290" cy="140" r="1.5" fill="rgba(60,120,185,.18)"/>
+            <circle cx="310" cy="170" r="1" fill="rgba(60,120,185,.14)"/>
+            <circle cx="345" cy="130" r="1.8" fill="rgba(60,120,185,.15)"/>
+            <circle cx="50" cy="155" r="1.2" fill="rgba(60,120,185,.16)"/>
+            <circle cx="360" cy="185" r="1" fill="rgba(60,120,185,.12)"/>
+
+            <!-- 전체 종이질감 -->
+            <rect width="400" height="240" fill="rgba(246,239,224,.1)" filter="url(#paperBg2)"/>
+
+            <!-- 스케치 테두리 -->
+            <rect x="7" y="7" width="386" height="226" fill="none" stroke="rgba(100,80,50,.12)" stroke-width="1" rx="2" filter="url(#pp)"/>
+
+            <!-- 브랜드 서명 -->
+            <text x="200" y="228" text-anchor="middle" font-family="Cormorant,serif" font-size="9" letter-spacing="5" fill="rgba(100,80,40,.45)" font-style="italic">JUNS · Custom Lure</text>
+            <line x1="100" y1="224" x2="148" y2="224" stroke="rgba(100,80,40,.18)" stroke-width=".5"/>
+            <line x1="252" y1="224" x2="300" y2="224" stroke="rgba(100,80,40,.18)" stroke-width=".5"/>
+          </svg>
+
+        </div>
+        <div class="pbody">
+          <div class="pbadge">3D CUSTOM LURE</div>
+          <div class="pname">커스텀 루어</div>
+          <div class="pdesc">커스텀 루어 제작 헤드. 원하는 무게와 컬러로 세상에 하나뿐인 루어를 제작합니다.</div>
+          <div><div class="olbl">무게</div><div class="otags"><span class="otag">40g</span><span class="otag">60g</span><span class="otag">80g</span><span class="otag">100g</span></div></div>
+          <div style="margin-top:8px"><div class="olbl">컬러</div><div class="otags"><span class="otag">형광 핑크</span><span class="otag">오렌지</span><span class="otag">레드</span><span class="otag">차트리스</span><span class="otag">퍼플</span><span class="otag">화이트</span></div></div>
+          <div class="prow"><div><div class="olbl" style="margin-bottom:3px">개당</div><div class="pprice">8,000<span style="font-size:12px;font-family:'Jost',sans-serif;color:var(--mu)">원</span></div></div><button class="hdr-btn" onclick="goPage('order')" style="padding:10px 16px;border-radius:2px">주문하기</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="background:var(--bg)">
+    <div class="si">
+      <div class="reveal"><p class="stag">HOW IT WORKS</p><h2 class="sh">주문 방법</h2></div>
+      <div class="steps reveal">
+        <div class="step"><div class="sn">1</div><div><div class="st">옵션 선택</div><div class="sd">무게(40g~100g)와 컬러를 선택합니다.</div></div></div>
+        <div class="step"><div class="sn">2</div><div><div class="st">주문 접수</div><div class="sd">이름과 연락처를 입력하면 즉시 접수됩니다.</div></div></div>
+        <div class="step"><div class="sn">3</div><div><div class="st">제작 · 출력</div><div class="sd">최신 3D 프린터로 직접 정밀 제작합니다. 평균 3~5일.</div></div></div>
+        <div class="step"><div class="sn">4</div><div><div class="st">배송 완료</div><div class="sd">안전 포장 후 배송. 송장번호를 문자로 전송드립니다.</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wsec">
+    <div class="si">
+      <div class="reveal"><p class="stag">WHY JUNS</p><h2 class="sh">왜 JUNS인가</h2></div>
+      <div class="wcards reveal">
+        <div class="wcard">
+            <div class="wi">
+              <svg viewBox="0 0 60 60" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="wp1"><feTurbulence type="turbulence" baseFrequency="0.04 0.07" numOctaves="2" seed="5" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+                </defs>
+                <g filter="url(#wp1)">
+                  <!-- 낚싯바늘 -->
+                  <path d="M38 8 Q44 8 46 14 Q48 20 44 26 Q40 32 34 34 L30 36 Q24 38 22 44 Q20 50 26 54 Q30 57 34 54" stroke="rgba(140,100,20,.85)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M38 8 Q45 8 47 15 Q49 21 45 27 Q41 33 35 35 L31 37 Q25 39 23 45 Q21 51 27 55 Q31 58 35 55" stroke="rgba(200,160,50,.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+                  <!-- 바늘 끝 -->
+                  <path d="M34 54 Q38 52 38 48" stroke="rgba(140,100,20,.85)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                  <path d="M34 54 Q38 52 38 48" stroke="rgba(200,160,50,.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+                  <!-- 바늘 윗부분 눈 -->
+                  <circle cx="38" cy="8" r="3.5" fill="none" stroke="rgba(140,100,20,.85)" stroke-width="3"/>
+                  <circle cx="38" cy="8" r="3.5" fill="none" stroke="rgba(200,160,50,.4)" stroke-width="1.5"/>
+                  <!-- 낚싯줄 -->
+                  <line x1="38" y1="4" x2="38" y2="0" stroke="rgba(120,90,40,.5)" stroke-width="1.2" stroke-dasharray="2 2"/>
+                  <!-- 광택 해칭 -->
+                  <path d="M40 14 Q42 12 43 16" stroke="rgba(220,190,100,.3)" stroke-width=".8" fill="none"/>
+                  <path d="M42 22 Q44 20 45 24" stroke="rgba(220,190,100,.25)" stroke-width=".8" fill="none"/>
+                </g>
+              </svg>
+            </div>
+            <div><div class="wt">완전 커스텀</div><div class="wd">기성품에 없는 무게·컬러. 원하는 스펙 그대로 제작합니다.</div></div>
+          </div>
+          <div class="wcard">
+            <div class="wi">
+              <svg viewBox="0 0 60 60" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="wp2"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="9" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+                </defs>
+                <g filter="url(#wp2)">
+                  <!-- 시계 본체 -->
+                  <circle cx="30" cy="32" r="20" fill="rgba(220,70,50,.12)" stroke="rgba(200,60,40,.75)" stroke-width="3"/>
+                  <circle cx="30" cy="32" r="20" fill="none" stroke="rgba(240,100,70,.3)" stroke-width="1.5"/>
+                  <!-- 눈금 -->
+                  <g stroke="rgba(180,50,30,.6)" stroke-width="2" stroke-linecap="round">
+                    <line x1="30" y1="14" x2="30" y2="18"/>
+                    <line x1="30" y1="46" x2="30" y2="50"/>
+                    <line x1="12" y1="32" x2="16" y2="32"/>
+                    <line x1="44" y1="32" x2="48" y2="32"/>
+                  </g>
+                  <g stroke="rgba(180,50,30,.3)" stroke-width="1.2" stroke-linecap="round">
+                    <line x1="21" y1="16.4" x2="22.8" y2="19.5"/>
+                    <line x1="13.4" y1="21" x2="16.5" y2="22.8"/>
+                    <line x1="13.4" y1="43" x2="16.5" y2="41.2"/>
+                    <line x1="21" y1="47.6" x2="22.8" y2="44.5"/>
+                    <line x1="39" y1="47.6" x2="37.2" y2="44.5"/>
+                    <line x1="46.6" y1="43" x2="43.5" y2="41.2"/>
+                    <line x1="46.6" y1="21" x2="43.5" y2="22.8"/>
+                    <line x1="39" y1="16.4" x2="37.2" y2="19.5"/>
+                  </g>
+                  <!-- 시침 -->
+                  <line x1="30" y1="32" x2="30" y2="20" stroke="rgba(180,50,30,.85)" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="30" y1="32" x2="30" y2="21" stroke="rgba(220,90,60,.3)" stroke-width="1.5" stroke-linecap="round"/>
+                  <!-- 분침 -->
+                  <line x1="30" y1="32" x2="40" y2="32" stroke="rgba(180,50,30,.85)" stroke-width="2.5" stroke-linecap="round"/>
+                  <line x1="30" y1="32" x2="40" y2="32" stroke="rgba(220,90,60,.3)" stroke-width="1" stroke-linecap="round"/>
+                  <!-- 중심 -->
+                  <circle cx="30" cy="32" r="2.5" fill="rgba(180,50,30,.8)"/>
+                  <!-- 화살표 강조 (빠름) -->
+                  <path d="M42 20 L46 16 L48 22" stroke="rgba(220,70,50,.7)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                  <!-- 윗부분 장식 -->
+                  <rect x="27" y="10" width="6" height="4" rx="1" fill="rgba(200,60,40,.4)" stroke="rgba(180,50,30,.5)" stroke-width="1"/>
+                </g>
+              </svg>
+            </div>
+            <div><div class="wt">소량 · 빠른 납기</div><div class="wd">1개부터 주문 가능. 평균 3~5일 내 출고.</div></div>
+          </div>
+          <div class="wcard">
+            <div class="wi">
+              <svg viewBox="0 0 60 60" width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="wp3"><feTurbulence type="turbulence" baseFrequency="0.04 0.07" numOctaves="2" seed="13" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.5" xChannelSelector="R" yChannelSelector="G"/></filter>
+                </defs>
+                <g filter="url(#wp3)">
+                  <!-- 프린터 베드 -->
+                  <rect x="8" y="42" width="44" height="6" rx="2" fill="rgba(60,100,180,.15)" stroke="rgba(40,80,170,.65)" stroke-width="2.5"/>
+                  <rect x="8" y="42" width="44" height="6" rx="2" fill="none" stroke="rgba(80,120,200,.3)" stroke-width="1.2"/>
+                  <!-- 베드 격자 -->
+                  <g stroke="rgba(40,80,170,.2)" stroke-width=".6">
+                    <line x1="19" y1="42" x2="19" y2="48"/><line x1="30" y1="42" x2="30" y2="48"/>
+                    <line x1="41" y1="42" x2="41" y2="48"/>
+                    <line x1="8" y1="45" x2="52" y2="45"/>
+                  </g>
+                  <!-- 프린터 프레임 좌 -->
+                  <line x1="12" y1="42" x2="12" y2="10" stroke="rgba(40,80,170,.65)" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="12" y1="42" x2="12" y2="10" stroke="rgba(80,120,200,.3)" stroke-width="1.5" stroke-linecap="round"/>
+                  <!-- 프린터 프레임 우 -->
+                  <line x1="48" y1="42" x2="48" y2="10" stroke="rgba(40,80,170,.65)" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="48" y1="42" x2="48" y2="10" stroke="rgba(80,120,200,.3)" stroke-width="1.5" stroke-linecap="round"/>
+                  <!-- 상단 가로대 -->
+                  <line x1="12" y1="10" x2="48" y2="10" stroke="rgba(40,80,170,.65)" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="12" y1="10" x2="48" y2="10" stroke="rgba(80,120,200,.3)" stroke-width="1.5" stroke-linecap="round"/>
+                  <!-- 프린트 헤드 -->
+                  <rect x="24" y="14" width="12" height="8" rx="1.5" fill="rgba(60,100,180,.25)" stroke="rgba(40,80,170,.7)" stroke-width="2"/>
+                  <!-- 압출기 노즐 -->
+                  <line x1="30" y1="22" x2="30" y2="30" stroke="rgba(40,80,170,.7)" stroke-width="2.5" stroke-linecap="round"/>
+                  <path d="M28 30 L30 34 L32 30Z" fill="rgba(40,80,170,.65)" stroke="rgba(80,120,200,.3)" stroke-width=".8"/>
+                  <!-- 프린팅 레이어들 (타이라바 헤드 형태) -->
+                  <ellipse cx="30" cy="40" rx="7" ry="2" fill="rgba(184,150,90,.5)" stroke="rgba(160,120,40,.6)" stroke-width="1.2"/>
+                  <ellipse cx="30" cy="37.5" rx="7.5" ry="2" fill="rgba(184,150,90,.45)" stroke="rgba(160,120,40,.5)" stroke-width="1"/>
+                  <ellipse cx="30" cy="35" rx="7" ry="2" fill="rgba(184,150,90,.4)" stroke="rgba(160,120,40,.45)" stroke-width=".9"/>
+                  <!-- 필라멘트 선 -->
+                  <path d="M30 14 Q36 10 40 4" stroke="rgba(184,150,90,.5)" stroke-width="1.5" stroke-dasharray="2 2" stroke-linecap="round"/>
+                  <!-- 노즐 빛 점 -->
+                  <circle cx="30" cy="33" r="1.5" fill="rgba(255,200,100,.7)"/>
+                </g>
+              </svg>
+            </div>
+            <div><div class="wt">정밀 제작</div><div class="wd">최신 3D 프린터로 직접 제작. 뛰어난 내구성과 실전 검증된 품질.</div></div>
+          </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hfooter">
+    <!-- 앱 설치 섹션 -->
+    <div id="pwa-install-section" style="margin-bottom:20px;padding:18px;background:var(--w);border:1.5px solid rgba(184,150,90,.3);border-radius:6px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--g);margin-bottom:8px;text-align:center">APP INSTALL</div>
+      <div style="font-family:'Cormorant',serif;font-size:18px;font-weight:700;color:var(--n);margin-bottom:6px;text-align:center">홈 화면 바로가기 추가</div>
+      <div style="font-size:13px;color:var(--mu);text-align:center;margin-bottom:14px;line-height:1.7">앱처럼 빠르게 접속하세요</div>
+
+      <!-- 안드로이드용 버튼 -->
+      <button id="pwa-install-btn" onclick="manualInstall()" style="display:none;width:100%;padding:13px;background:var(--n);color:#FFF;border:none;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;letter-spacing:1px;cursor:pointer;border-radius:4px;margin-bottom:10px">
+        📲 홈 화면에 추가 (설치)
+      </button>
+
+      <!-- 항상 표시: Chrome 안드로이드 수동 안내 -->
+      <div id="android-guide" style="display:none;background:#F0F4FF;border:1px solid #C0CADF;border-radius:4px;padding:13px;margin-bottom:10px;font-size:13px;color:#1A2744;line-height:1.8">
+        <b>안드로이드 Chrome</b><br>
+        주소창 오른쪽 <b>⋮</b> → <b>홈 화면에 추가</b> 탭
+      </div>
+
+      <!-- iOS Safari 안내 -->
+      <div id="ios-guide" style="display:none;background:#F0F7FF;border:1px solid #B0C8E8;border-radius:4px;padding:13px;font-size:13px;color:#1A2744;line-height:1.8">
+        <b>아이폰 Safari</b><br>
+        하단 공유 <b>□↑</b> → <b>홈 화면에 추가</b> 탭
+      </div>
+    </div>
+
+    <div class="hft">© 2026 JUNS · MADE BY JUNS</div>
+    <div class="hfv" id="ver-display"></div>
+  </div>
+</div>
+
+<!-- ORDER -->
+<div class="pg" id="pg-order">
+  <div class="opg"><div class="oi">
+    <div class="phd"><div class="phd-t">커스텀 루어 주문</div><div class="phd-s">OPTIONS · QUANTITY · INFO</div></div>
+    <div id="order-body">
+      <div class="ocard">
+        <div class="osec"><div class="olb">무게 선택</div><div class="oopts" id="o-weight">
+          <button class="oopt on" onclick="setOpt('weight',this,'40g')">40g</button>
+          <button class="oopt" onclick="setOpt('weight',this,'60g')">60g</button>
+          <button class="oopt" onclick="setOpt('weight',this,'80g')">80g</button>
+          <button class="oopt" onclick="setOpt('weight',this,'100g')">100g</button>
+        </div></div>
+        <div class="osec"><div class="olb">컬러 선택</div><div class="oopts" id="o-color">
+          <button class="oopt on" onclick="setOpt('color',this,'형광 핑크')">형광 핑크</button>
+          <button class="oopt" onclick="setOpt('color',this,'오렌지')">오렌지</button>
+          <button class="oopt" onclick="setOpt('color',this,'레드')">레드</button>
+          <button class="oopt" onclick="setOpt('color',this,'차트리스')">차트리스</button>
+          <button class="oopt" onclick="setOpt('color',this,'퍼플')">퍼플</button>
+          <button class="oopt" onclick="setOpt('color',this,'화이트')">화이트</button>
+        </div></div>
+        <div class="osec"><div class="olb">수량</div><div class="oqty"><button class="oqb" onclick="changeQty(-1)">&#8722;</button><div class="oqn" id="o-qty-num">1</div><button class="oqb" onclick="changeQty(1)">+</button></div></div>
+      </div>
+      <div class="ocard">
+        <div class="osec"><div class="olb">주문자 이름</div><input id="o-name" class="oinp" placeholder="이름을 입력하세요"/></div>
+        <div class="osec"><div class="olb">연락처</div><input id="o-phone" class="oinp" type="tel" placeholder="010-0000-0000"/></div>
+        <div class="osec"><div class="olb">메모 (선택)</div><input id="o-memo" class="oinp" placeholder="요청사항"/></div>
+      </div>
+      <div class="opricebox"><div class="opricelbl">예상 금액</div><div class="opriceval" id="o-price-val">8,000원</div></div>
+      <div class="oerr" id="o-err"></div>
+      <button class="osub" onclick="submitOrder()">주문하기</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- TIDE -->
+<div class="pg" id="pg-tide">
+  <div class="tpg"><div class="tinner">
+    <div class="phd"><div class="phd-t">물때 · 날씨</div><div class="phd-s">TIDE TABLE · WEATHER</div></div>
+    <div class="wxcard">
+      <div><div class="wxtemp" id="wx-temp">--°</div><div class="wxdesc" id="wx-desc">로딩 중...</div><div class="wxdets"><span class="wxdet" id="wx-feel">체감 --°</span><span class="wxdet" id="wx-hum">습도 --%</span><span class="wxdet" id="wx-wind">풍속 --m/s</span></div></div>
+      <div class="wxicon" id="wx-icon">⏳</div>
+    </div>
+    <div class="ttcard">
+      <div><div class="ttn" id="t-num">--물</div><div class="ttlbl" id="t-name">--</div></div>
+      <div style="text-align:right"><div class="tttype" id="t-type">--</div><div class="ttlunar" id="t-lunar">음력 --월 --일</div></div>
+    </div>
+    <div class="tglbl" id="t-month-lbl">이달의 물때표</div>
+    <div class="tgrid" id="t-grid"></div>
+    <div class="tleg">
+      <div class="tl"><div class="tldot" style="background:#16A34A"></div>사리</div>
+      <div class="tl"><div class="tldot" style="background:#2563EB"></div>조금</div>
+      <div class="tl"><div class="tldot" style="background:#1258A0;outline:2px solid #1258A0;outline-offset:1px"></div>오늘</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- FISH -->
+<div class="pg" id="pg-fish">
+  <div class="fpg"><div class="fi">
+    <div class="phd"><div class="phd-t">지역별 어종정보</div><div class="phd-s">FISH DATABASE · SEASON</div></div>
+    <div class="fflbl">해역</div>
+    <div class="fpills" id="fp-region">
+      <button class="fpill on" onclick="fpReg(this,'all')">전체</button>
+      <button class="fpill" onclick="fpReg(this,'west')">서해</button>
+      <button class="fpill" onclick="fpReg(this,'south')">남해</button>
+      <button class="fpill" onclick="fpReg(this,'east')">동해</button>
+      <button class="fpill" onclick="fpReg(this,'jeju')">제주</button>
+    </div>
+    <div class="fflbl">월</div>
+    <div class="fmgrid" id="fp-month">
+      <button class="fm" onclick="fpMon(this,0)">전체</button>
+      <button class="fm" onclick="fpMon(this,1)">1</button><button class="fm" onclick="fpMon(this,2)">2</button>
+      <button class="fm" onclick="fpMon(this,3)">3</button><button class="fm" onclick="fpMon(this,4)">4</button>
+      <button class="fm" onclick="fpMon(this,5)">5</button><button class="fm" onclick="fpMon(this,6)">6</button>
+      <button class="fm" onclick="fpMon(this,7)">7</button><button class="fm" onclick="fpMon(this,8)">8</button>
+      <button class="fm" onclick="fpMon(this,9)">9</button><button class="fm" onclick="fpMon(this,10)">10</button>
+      <button class="fm" onclick="fpMon(this,11)">11</button><button class="fm" onclick="fpMon(this,12)">12</button>
+    </div>
+    <div class="fflbl">방식</div>
+    <div class="fpills" id="fp-type">
+      <button class="fpill on" onclick="fpTyp(this,'all')">전체</button>
+      <button class="fpill" onclick="fpTyp(this,'boat')">선상</button>
+      <button class="fpill" onclick="fpTyp(this,'rock')">갯바위</button>
+    </div>
+    <div class="fbar"><div class="fbart" id="fp-title">전체 어종</div><div class="fbarn" id="fp-count">21종</div></div>
+    <div class="flist" id="fp-list"></div>
+  </div></div>
+</div>
+
+<!-- MAP -->
+<div class="pg" id="pg-map">
+  <div class="mpg"><div class="mi">
+    <div class="phd"><div class="phd-t">편의시설</div><div class="phd-s">NEARBY · MAP</div></div>
+    <div id="mp-domain-warn" style="display:none;padding:14px 16px;background:#FFF8F0;border:1.5px solid #E8C4A0;border-radius:6px;margin-bottom:12px;font-size:14px;color:#7A3008;line-height:1.8">
+      📍 지도·주소 기능은 <b>juns9990.github.io</b> 에서만 동작합니다.<br>
+      GitHub에 업로드 후 확인해 주세요.
+    </div>
+    <button class="mgps" id="mp-gps" onclick="mpLocate()">📍 현위치 검색 시작</button>
+
+    <!-- 현재위치 표시 박스 -->
+    <div id="mp-loc-box" style="padding:12px 16px;background:#FFF8F0;border:1px solid #E8C4A0;border-radius:6px;margin-bottom:10px">
+      <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:#A04C10;margin-bottom:3px">현재 위치</div>
+      <div id="mp-loc-addr" style="font-family:'Jost',sans-serif;font-size:14px;font-weight:500;color:#5C3010">GPS 버튼을 눌러 위치를 검색하세요</div>
+      <div id="mp-loc-coord" style="font-family:'DM Mono',monospace;font-size:10px;color:#B08060;margin-top:2px"></div>
+    </div>
+    <!-- 반경 선택 -->
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;color:#A04C10">반경</span>
+      <button id="rad-5" onclick="setRadius(5)" style="padding:6px 16px;background:#A04C10;color:#FFF;border:none;border-radius:4px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;cursor:pointer">5km</button>
+      <button id="rad-10" onclick="setRadius(10)" style="padding:6px 16px;background:var(--w);color:#A04C10;border:1.5px solid #A04C10;border-radius:4px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;cursor:pointer">10km</button>
+    </div>
+    <div class="mcats" id="mp-cats">
+
+      <button class="mcat on" onclick="mpCat(this,'선착장')">
+        <svg class="mcat-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="mc1"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="3" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g filter="url(#mc1)">
+            <path d="M17 4 L17 22" stroke="#1258A0" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M17 4 L28 14 L17 14Z" fill="rgba(18,88,160,.2)" stroke="#1258A0" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M7 22 Q17 20 27 22 L25 28 Q17 26 9 28Z" fill="rgba(18,88,160,.15)" stroke="#1258A0" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M4 28 Q17 26 30 28" stroke="#1258A0" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M17 4 L28 14 L17 14Z" fill="none" stroke="rgba(80,140,200,.3)" stroke-width="1"/>
+          </g>
+        </svg>
+        <span class="mcat-lbl">선착장</span>
+      </button>
+
+      <button class="mcat" onclick="mpCat(this,'낚시점')">
+        <svg class="mcat-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="mc2"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="7" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g filter="url(#mc2)">
+            <path d="M8 5 Q10 5 11 7 Q12 9 10 11 Q8 13 8 16 Q8 20 12 22" stroke="#3D7808" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+            <path d="M8 5 Q10 5 11 7 Q12 9 10 11" stroke="rgba(80,160,30,.3)" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+            <circle cx="8" cy="5" r="2.5" fill="none" stroke="#3D7808" stroke-width="2.2"/>
+            <path d="M12 22 Q16 24 16 28 Q16 31 13 30" stroke="#3D7808" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path d="M13 30 Q16 29 16 26" stroke="#3D7808" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <line x1="8" y1="2" x2="8" y2="5" stroke="rgba(61,120,8,.4)" stroke-width="1.2" stroke-dasharray="1 2"/>
+            <ellipse cx="22" cy="18" rx="6" ry="5" fill="rgba(200,60,45,.2)" stroke="rgba(200,60,45,.7)" stroke-width="1.8"/>
+            <path d="M20 16 Q22 14 24 16" stroke="rgba(200,60,45,.5)" stroke-width=".8" fill="none"/>
+            <circle cx="23" cy="18" r="1.5" fill="rgba(200,60,45,.6)"/>
+          </g>
+        </svg>
+        <span class="mcat-lbl">낚시점</span>
+      </button>
+
+      <button class="mcat" onclick="mpCat(this,'편의점')">
+        <svg class="mcat-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="mc3"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="11" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g filter="url(#mc3)">
+            <path d="M5 14 L9 6 L25 6 L29 14 Z" fill="rgba(220,70,50,.15)" stroke="rgba(200,55,40,.7)" stroke-width="2" stroke-linejoin="round"/>
+            <rect x="5" y="14" width="24" height="16" rx="1" fill="rgba(220,70,50,.1)" stroke="rgba(200,55,40,.7)" stroke-width="2"/>
+            <rect x="13" y="20" width="8" height="10" rx="1" fill="rgba(220,70,50,.15)" stroke="rgba(200,55,40,.5)" stroke-width="1.5"/>
+            <rect x="7" y="17" width="6" height="5" rx="1" fill="rgba(220,70,50,.12)" stroke="rgba(200,55,40,.4)" stroke-width="1.2"/>
+            <rect x="21" y="17" width="6" height="5" rx="1" fill="rgba(220,70,50,.12)" stroke="rgba(200,55,40,.4)" stroke-width="1.2"/>
+            <line x1="17" y1="6" x2="17" y2="14" stroke="rgba(200,55,40,.3)" stroke-width="1"/>
+          </g>
+        </svg>
+        <span class="mcat-lbl">편의점</span>
+      </button>
+
+      <button class="mcat" onclick="mpCat(this,'화장실')">
+        <svg class="mcat-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="mc4"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="15" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g filter="url(#mc4)">
+            <circle cx="11" cy="7" r="3" fill="rgba(18,88,160,.2)" stroke="rgba(18,88,160,.7)" stroke-width="2"/>
+            <path d="M7 13 Q7 11 11 11 Q15 11 15 13 L15 22 L13 22 L13 30 L9 30 L9 22 L7 22 Z" fill="rgba(18,88,160,.15)" stroke="rgba(18,88,160,.65)" stroke-width="1.8" stroke-linejoin="round"/>
+            <circle cx="23" cy="7" r="3" fill="rgba(200,60,45,.2)" stroke="rgba(200,60,45,.7)" stroke-width="2"/>
+            <path d="M20 13 Q22 10 24 13 L26 18 L23 18 L23 30 L21 30 L21 18 L19 18 Z" fill="rgba(200,60,45,.15)" stroke="rgba(200,60,45,.65)" stroke-width="1.8" stroke-linejoin="round"/>
+            <line x1="17" y1="4" x2="17" y2="32" stroke="rgba(100,80,40,.25)" stroke-width="1.5" stroke-dasharray="2 2"/>
+          </g>
+        </svg>
+        <span class="mcat-lbl">화장실</span>
+      </button>
+
+      <button class="mcat" onclick="mpCat(this,'주차장')">
+        <svg class="mcat-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="mc5"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="19" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g filter="url(#mc5)">
+            <rect x="4" y="4" width="26" height="26" rx="3" fill="rgba(61,120,8,.1)" stroke="rgba(61,120,8,.65)" stroke-width="2.2"/>
+            <path d="M11 25 L11 9 L19 9 Q24 9 24 15 Q24 21 19 21 L11 21" stroke="rgba(61,120,8,.85)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M11 9 L19 9 Q24 9 24 15 Q24 21 19 21 L11 21" fill="rgba(61,120,8,.08)"/>
+          </g>
+        </svg>
+        <span class="mcat-lbl">주차장</span>
+      </button>
+
+      <button class="mcat" onclick="mpCat(this,'마트')">
+        <svg class="mcat-icon" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="mc6"><feTurbulence type="turbulence" baseFrequency="0.04 0.08" numOctaves="2" seed="23" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="1.2" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g filter="url(#mc6)">
+            <path d="M4 6 L8 6 L12 22 L26 22 L30 10 L10 10" stroke="rgba(160,76,16,.75)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 22 L10 10 L30 10 L26 22Z" fill="rgba(160,76,16,.1)"/>
+            <circle cx="14" cy="27" r="3" fill="rgba(160,76,16,.2)" stroke="rgba(160,76,16,.7)" stroke-width="2"/>
+            <circle cx="24" cy="27" r="3" fill="rgba(160,76,16,.2)" stroke="rgba(160,76,16,.7)" stroke-width="2"/>
+            <line x1="18" y1="13" x2="18" y2="20" stroke="rgba(160,76,16,.3)" stroke-width="1"/>
+            <line x1="22" y1="13" x2="22" y2="20" stroke="rgba(160,76,16,.3)" stroke-width="1"/>
+          </g>
+        </svg>
+        <span class="mcat-lbl">마트</span>
+      </button>
+
+    </div>
+    <div class="mbox"><div id="kakao-map-el"></div></div>
+    <div id="mp-result"></div>
+  </div></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bi on" id="bi-home" onclick="goPage('home')">
+    <div class="bi-seal">
+      <svg width="32" height="32" viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="24" fill="none" stroke="#B8965A" stroke-width="2" stroke-dasharray="4 3"/>
+        <circle cx="30" cy="30" r="16" fill="#1A2744"/>
+        <text x="30" y="36" text-anchor="middle" font-family="Cormorant,serif" font-size="16" font-weight="700" fill="#D4AF78">J</text>
+      </svg>
+    </div>
+    <div class="bi-lbl">홈</div>
+  </button>
+  <button class="bi" id="bi-order" onclick="goPage('order')">
+    <div class="bi-icon">
+      <svg width="32" height="34" viewBox="0 0 24 26" fill="none">
+        <path d="M12 2C9 7 5 11 5 15a7 7 0 0014 0c0-4-4-8-7-13z" stroke="#0D7A62" stroke-width="2.5" stroke-linejoin="round" fill="rgba(13,122,98,.1)"/>
+        <circle cx="12" cy="15" r="2.5" fill="#0D7A62"/>
+        <path d="M9 24h6M12 22v2" stroke="#0D7A62" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="bi-lbl">주문</div>
+  </button>
+  <button class="bi" id="bi-tide" onclick="goPage('tide')">
+    <div class="bi-icon">
+      <svg width="36" height="32" viewBox="0 0 28 26" fill="none">
+        <circle cx="14" cy="5" r="3.5" fill="#1258A0"/>
+        <path d="M14 8.5v2.5" stroke="#1258A0" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M2 17c2-3 4-3 6 0s4 3 6 0 4-3 6 0 4 3 6 0" stroke="#1258A0" stroke-width="2.8" stroke-linecap="round"/>
+        <path d="M2 22c2-2.5 4-2.5 6 0s4 2.5 6 0 4-2.5 6 0 4 2.5 6 0" stroke="rgba(18,88,160,.4)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="bi-lbl">물때</div>
+  </button>
+  <button class="bi" id="bi-fish" onclick="goPage('fish')">
+    <div class="bi-icon">
+      <svg width="38" height="28" viewBox="0 0 30 22" fill="none">
+        <path d="M21 11c0 4.5-4 8-9 8S3 15.5 3 11s4-8 9-8 9 3.5 9 8z" stroke="#3D7808" stroke-width="2.5" fill="rgba(61,120,8,.1)"/>
+        <path d="M21 11l7-6v12l-7-6z" fill="rgba(61,120,8,.15)" stroke="#3D7808" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="8" cy="10" r="1.5" fill="#3D7808"/>
+      </svg>
+    </div>
+    <div class="bi-lbl">어종</div>
+  </button>
+  <button class="bi" id="bi-map" onclick="goPage('map')">
+    <div class="bi-icon">
+      <svg width="28" height="36" viewBox="0 0 22 28" fill="none">
+        <path d="M11 1C6.03 1 2 5.03 2 10c0 7.25 9 17 9 17s9-9.75 9-17c0-4.97-4.03-9-9-9z" fill="rgba(160,76,16,.12)" stroke="#A04C10" stroke-width="2.5"/>
+        <circle cx="11" cy="10" r="3.5" fill="#A04C10"/>
+      </svg>
+    </div>
+    <div class="bi-lbl">편의</div>
+  </button>
+</nav>
+
+<script>
+function goPage(n){
+  document.querySelectorAll('.pg').forEach(function(p){p.classList.remove('on');});
+  document.querySelectorAll('.bi').forEach(function(b){b.classList.remove('on');});
+  document.getElementById('pg-'+n).classList.add('on');
+  document.getElementById('bi-'+n).classList.add('on');
+  window.scrollTo(0,0);
+  if(n==='tide'&&!tL)loadTide();
+  if(n==='fish'&&!fL)loadFish();
+  if(n==='map'){setTimeout(mpInit,150);}
+}
+var ro=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting)x.target.classList.add('on');});},{threshold:.1});
+document.querySelectorAll('.reveal').forEach(function(el){ro.observe(el);});
+
+// CLOCK + INFO BAR
+var WD2=['일','월','화','수','목','금','토'];
+var WI2={Clear:'☀️',Clouds:'☁️',Rain:'🌧',Drizzle:'🌦',Snow:'❄️',Thunderstorm:'⛈',Mist:'🌫',Haze:'🌫'};
+function getLunar2(d){var ref=new Date(2000,0,6);var diff=Math.floor((d-ref)/86400000);return{day:((diff%30)+30)%30+1};}
+function getTide2(ld){var t=((ld+5)%15)+1;return t>15?15:t;}
+function tick(){
+  var now=new Date();
+  var h=String(now.getHours()).padStart(2,'0');
+  var m=String(now.getMinutes()).padStart(2,'0');
+  var mo=String(now.getMonth()+1).padStart(2,'0');
+  var dd=String(now.getDate()).padStart(2,'0');
+  var dEl=document.getElementById('ib-date');
+  var tEl=document.getElementById('ib-time');
+  var dayEl=document.getElementById('ib-day');
+  if(dEl)dEl.textContent=now.getFullYear()+'.'+mo+'.'+dd;
+  if(tEl)tEl.innerHTML=h+'<span class="blink">:</span>'+m;
+  if(dayEl)dayEl.textContent=WD2[now.getDay()]+'요일';
+  var l=getLunar2(now),tn=getTide2(l.day);
+  var tEl2=document.getElementById('ib-tide');
+  var tsEl=document.getElementById('ib-tide-s');
+  if(tEl2)tEl2.textContent=tn+'물';
+  if(tsEl)tsEl.textContent='음력 '+l.day+'일';
+}
+setInterval(tick,1000);
+tick();
+fetch('https://api.openweathermap.org/data/2.5/weather?lat=35.228&lon=128.681&appid=bd5e378503939ddaee76f12ad7a97608&units=metric&lang=kr')
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var main=d.weather&&d.weather[0]&&d.weather[0].main||'';
+    var t=Math.round(d.main&&d.main.temp||0);
+    var el=document.getElementById('ib-wx');
+    var ds=document.getElementById('ib-wxd');
+    if(el)el.textContent=(WI2[main]||'🌤')+' '+t+'°';
+    if(ds)ds.textContent=d.weather&&d.weather[0]&&d.weather[0].description||'';
+  }).catch(function(){});
+
+// ORDER
+var oW='40g',oC='형광 핑크',oQ=1,oP=8000;
+function setOpt(t,btn,v){var id=t==='weight'?'o-weight':'o-color';document.querySelectorAll('#'+id+' .oopt').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');if(t==='weight')oW=v;else oC=v;updP();}
+function changeQty(d){oQ=Math.max(1,oQ+d);document.getElementById('o-qty-num').textContent=oQ;updP();}
+function updP(){document.getElementById('o-price-val').textContent=(oP*oQ).toLocaleString()+'원';}
+function submitOrder(){
+  var name=document.getElementById('o-name').value.trim();
+  var phone=document.getElementById('o-phone').value.trim();
+  var err=document.getElementById('o-err');
+  if(!name){err.textContent='이름을 입력해주세요';err.style.display='block';return;}
+  if(!phone){err.textContent='연락처를 입력해주세요';err.style.display='block';return;}
+  err.style.display='none';
+  try{firebase.firestore().collection('orders').add({productName:'커스텀 루어',name:name,phone:phone,opts:{weight:oW,color:oC},qty:oQ,memo:document.getElementById('o-memo').value.trim(),status:'접수',date:new Date().toISOString().split('T')[0],createdAt:firebase.firestore.FieldValue.serverTimestamp()});}catch(e){}
+  document.getElementById('order-body').innerHTML='<div class="odone"><div class="odone-ic">✓</div><div class="odone-t">주문 완료!</div><div class="odone-s">접수되었습니다.<br>확인 후 빠르게 연락드리겠습니다.</div><button class="ores" onclick="location.reload()">추가 주문하기</button></div>';
+}
+
+// TIDE
+var tL=false;
+var WD=['일','월','화','수','목','금','토'];
+var TN=['','한물','두물','세물','네물','다섯물','여섯물','일곱물','여덟물','아홉물','열물','열한물','열두물','열세물','열네물','열다섯물'];
+var TT={1:'사리전',2:'사리',3:'사리',4:'사리후',7:'조금전',8:'조금',9:'조금',10:'조금후',14:'무시',15:'사리전',16:'사리전',17:'사리',18:'사리',19:'사리후',22:'조금전',23:'조금',24:'조금',25:'조금후',29:'무시',30:'사리전'};
+var WI={Clear:'☀️',Clouds:'☁️',Rain:'🌧',Drizzle:'🌦',Snow:'❄️',Thunderstorm:'⛈',Mist:'🌫',Haze:'🌫'};
+function getLunar(d){var ref=new Date(2000,0,6);var diff=Math.floor((d-ref)/86400000);return{day:((diff%30)+30)%30+1,month:Math.floor((diff/29.53)%12)+1||1};}
+function getTide(ld){var t=((ld+5)%15)+1;return t>15?15:t;}
+function loadTide(){
+  tL=true;
+  var now=new Date(),lunar=getLunar(now),tNum=getTide(lunar.day),tType=TT[lunar.day]||'';
+  var tColor=tType.indexOf('사리')>=0?'#16A34A':tType.indexOf('조금')>=0?'#2563EB':'#78716C';
+  document.getElementById('t-num').textContent=tNum+'물';
+  document.getElementById('t-name').textContent=TN[tNum];
+  document.getElementById('t-type').textContent=tType||'보통';
+  document.getElementById('t-type').style.color=tColor;
+  document.getElementById('t-lunar').textContent='음력 '+lunar.month+'월 '+lunar.day+'일';
+  var y=now.getFullYear(),mo=now.getMonth(),today=now.getDate();
+  var days=new Date(y,mo+1,0).getDate();
+  document.getElementById('t-month-lbl').textContent=y+'년 '+String(mo+1).padStart(2,'0')+'월 물때표';
+  var html='';
+  for(var d=1;d<=Math.min(days,30);d++){
+    var dt=new Date(y,mo,d),l=getLunar(dt),t=getTide(l.day);
+    var iT=d===today,iS=(l.day>=2&&l.day<=4)||(l.day>=17&&l.day<=19),iN=(l.day>=8&&l.day<=10)||(l.day>=23&&l.day<=25);
+    var tp=TT[l.day]||'';
+    html+='<div class="tg'+(iT?' tg-t':iS?' tg-s':iN?' tg-n':'')+'"><div class="tgday">'+WD[dt.getDay()]+'</div><div class="tgd">'+d+'</div><div class="tgt">'+t+'물</div>'+(tp?'<div class="tgtp">'+tp+'</div>':'<div style="height:12px"></div>')+'</div>';
+  }
+  document.getElementById('t-grid').innerHTML=html;
+  fetch('https://api.openweathermap.org/data/2.5/weather?lat=35.228&lon=128.681&appid=bd5e378503939ddaee76f12ad7a97608&units=metric&lang=kr')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var main=d.weather&&d.weather[0]&&d.weather[0].main||'';
+      document.getElementById('wx-temp').textContent=Math.round(d.main&&d.main.temp||0)+'°';
+      document.getElementById('wx-desc').textContent=d.weather&&d.weather[0]&&d.weather[0].description||'';
+      document.getElementById('wx-icon').textContent=WI[main]||'🌤';
+      document.getElementById('wx-feel').textContent='체감 '+Math.round(d.main&&d.main.feels_like||0)+'°';
+      document.getElementById('wx-hum').textContent='습도 '+(d.main&&d.main.humidity||0)+'%';
+      document.getElementById('wx-wind').textContent='풍속 '+(d.wind&&Math.round(d.wind.speed*10)/10||0)+'m/s';
+    }).catch(function(){document.getElementById('wx-desc').textContent='날씨 정보 없음';});
+}
+
+// FISH
+var fL=false;
+var FDB=[
+  {n:'참돔',ic:'🐟',tai:true,reg:['west','south','east','jeju'],type:'both',mo:[3,4,5,6,7,8,9,10,11,12,1,2],pk:[4,5,6,10,11,12],desc:'타이라바 대표 대상어. 전국 해역. 남해 연중·서해 5~10월.',note:'60~100g, 핑크·오렌지. 바닥층 공략.'},
+  {n:'방어',ic:'🐠',tai:true,reg:['east','south','jeju'],type:'both',mo:[10,11,12,1,2],pk:[11,12,1],desc:'겨울 대표. 동해·제주 11~1월 최성기.',note:'80~100g, 차트리스·화이트.'},
+  {n:'부시리',ic:'🐡',tai:true,reg:['south','east','jeju'],type:'both',mo:[6,7,8,9,10],pk:[7,8,9],desc:'여름 대표. 방어와 반대로 여름이 제철.',note:'80~100g, 빠른 릴링.'},
+  {n:'감성돔',ic:'🐟',tai:false,reg:['west','south','east','jeju'],type:'rock',mo:[3,4,5,9,10,11,12],pk:[4,5,10,11],desc:'찌낚시 대표. 봄·가을 시즌.',note:null},
+  {n:'농어',ic:'🐟',tai:true,reg:['west','south','east','jeju'],type:'both',mo:[5,6,7,8,9,10],pk:[6,7,8,9],desc:'루어 대표. 전국 연안. 여름 야간 최고.',note:'40~60g, 레드·오렌지.'},
+  {n:'광어',ic:'🦈',tai:false,reg:['west','east','south'],type:'boat',mo:[4,5,6,7,8,9,10],pk:[6,7,8],desc:'루어·다운샷. 6~8월 최성기.',note:null},
+  {n:'우럭',ic:'🐡',tai:true,reg:['west','south','east'],type:'both',mo:[1,2,3,4,5,6,7,8,9,10,11,12],pk:[9,10,4,5],desc:'서해 대표 연중. 가을 씨알 굵음.',note:'40~60g, 핑크·레드.'},
+  {n:'벵에돔',ic:'🐟',tai:false,reg:['south','jeju'],type:'rock',mo:[6,7,8,9,10,11,12],pk:[7,8,9,10],desc:'남해·제주 갯바위 대표. 여름~가을.',note:null},
+  {n:'삼치',ic:'🐟',tai:false,reg:['west','south','east'],type:'boat',mo:[9,10,11],pk:[10,11],desc:'가을 회유. 9~11월 전국.',note:null},
+  {n:'가자미류',ic:'🦈',tai:false,reg:['east','south'],type:'both',mo:[1,2,3,4,5,6,7,8,9,10,11,12],pk:[3,4,5,6],desc:'동해 연중. 봄~여름 씨알 굵음.',note:null},
+  {n:'돌돔',ic:'🐡',tai:false,reg:['south','jeju','east'],type:'rock',mo:[6,7,8,9,10],pk:[7,8,9],desc:'남해·제주 고급 어종. 여름~가을.',note:null},
+  {n:'볼락',ic:'🐠',tai:false,reg:['south','east','jeju'],type:'both',mo:[1,2,3,11,12],pk:[12,1,2],desc:'겨울~봄 야간. 아징 채비.',note:null},
+  {n:'갈치',ic:'🐟',tai:false,reg:['south','west','jeju'],type:'boat',mo:[8,9,10,11],pk:[9,10],desc:'여름~가을 선상 대표.',note:null},
+  {n:'무늬오징어',ic:'🦑',tai:false,reg:['south','jeju','east'],type:'rock',mo:[5,6,7,8,9,10,11],pk:[9,10,11],desc:'에깅 대표. 가을 마릿수.',note:null},
+  {n:'주꾸미',ic:'🐙',tai:false,reg:['west','south'],type:'boat',mo:[8,9,10,11],pk:[9,10],desc:'서해 가을 대표.',note:null},
+  {n:'붕장어',ic:'🐍',tai:false,reg:['west','south'],type:'both',mo:[6,7,8,9,10,11,12],pk:[8,9,10],desc:'야간낚시 인기. 여름~가을.',note:null},
+  {n:'대구',ic:'🐟',tai:false,reg:['east','south'],type:'boat',mo:[12,1,2,3],pk:[1,2],desc:'동해 겨울 선상 대표.',note:null},
+  {n:'고등어',ic:'🐟',tai:false,reg:['south','east','west','jeju'],type:'boat',mo:[9,10,11],pk:[10,11],desc:'가을 회유. 사비키 채비.',note:null},
+  {n:'전갱이',ic:'🐟',tai:false,reg:['south','jeju','east'],type:'both',mo:[5,6,7,8,9,10],pk:[7,8,9],desc:'여름~가을 아징. 야간 마릿수.',note:null},
+  {n:'자바리',ic:'🐠',tai:true,reg:['jeju'],type:'boat',mo:[6,7,8,9,10],pk:[7,8,9],desc:'제주 최고급. 선상 대물.',note:'80~100g 헤비. 심층 바닥.'},
+  {n:'쥐노래미',ic:'🐡',tai:false,reg:['west','south','east'],type:'both',mo:[1,2,3,4,5,6,7,8,9,10,11,12],pk:[9,10,11,3,4],desc:'전국 암초. 연중 가능.',note:null},
+];
+var fpS={r:'all',m:0,t:'all'};
+function fpReg(btn,v){selP('fp-region',btn);fpS.r=v;fpR();}
+function fpMon(btn,v){selP('fp-month',btn);fpS.m=v;fpR();}
+function fpTyp(btn,v){selP('fp-type',btn);fpS.t=v;fpR();}
+function selP(id,btn){document.querySelectorAll('#'+id+' button').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');}
+function loadFish(){fL=true;var m=new Date().getMonth()+1;var bs=document.querySelectorAll('#fp-month button');bs.forEach(function(b){b.classList.remove('on');});if(bs[m])bs[m].classList.add('on');fpS.m=m;fpR();}
+function fpR(){
+  var rN={all:'전체',west:'서해',south:'남해',east:'동해',jeju:'제주'};
+  var mN={0:'연중',1:'1월',2:'2월',3:'3월',4:'4월',5:'5월',6:'6월',7:'7월',8:'8월',9:'9월',10:'10월',11:'11월',12:'12월'};
+  var f=FDB.filter(function(x){return(fpS.r==='all'||x.reg.indexOf(fpS.r)>=0)&&(fpS.m===0||x.mo.indexOf(fpS.m)>=0)&&(fpS.t==='all'||(fpS.t==='tai'&&x.tai)||(fpS.t==='boat'&&(x.type==='boat'||x.type==='both'))||(fpS.t==='rock'&&(x.type==='rock'||x.type==='both')));});
+  f.sort(function(a,b){return(b.tai?1:0)-(a.tai?1:0);});
+  document.getElementById('fp-title').textContent=rN[fpS.r]+' '+mN[fpS.m];
+  document.getElementById('fp-count').textContent=f.length+'종';
+  if(!f.length){document.getElementById('fp-list').innerHTML='<div class="fempty">해당 조건 어종 없음</div>';return;}
+  var html='';
+  f.forEach(function(x){
+    var tt=x.type==='boat'?'<span class="ftag ftag-b">선상</span>':x.type==='rock'?'<span class="ftag ftag-r">갯바위</span>':'<span class="ftag ftag-br">선상+갯바위</span>';
+    var bars='';for(var m=1;m<=12;m++){bars+='<div class="fmb'+(x.pk.indexOf(m)>=0?' pk':x.mo.indexOf(m)>=0?' on':'')+'">'+m+'</div>';}
+    html+='<div class="fitem'+(x.tai?' ftai':'')+'"><div class="fico">'+x.ic+'</div><div style="flex:1;min-width:0"><div class="fname">'+x.n+'</div><div class="ftags">'+tt+(x.tai?'<span class="ftag ftag-t">타이라바</span>':'')+'</div><div class="fdesc">'+x.desc+'</div><div class="fmbar">'+bars+'</div>'+(x.note?'<div class="fnote">🎣 '+x.note+'</div>':'')+'</div></div>';
+  });
+  document.getElementById('fp-list').innerHTML=html;
+}
+
+// MAP
+var CI={'선착장':'⛵','낚시점':'🎣','편의점':'🛒','화장실':'🚻','주차장':'🅿️','마트':'🛍️'};
+function mpNav(lat,lng){window.open("https://maps.google.com/maps?q="+lat+","+lng,"_blank");}
+function mpOpenUrl(btn){
+  var u=decodeURIComponent(btn.getAttribute('data-u')||'');
+  if(u)window.open(u,'_blank');
+}
+
+// ── MAP (Leaflet + OpenStreetMap) ──
+var mpMap=null,mpMyMk=null,mpMks=[],mpLat=null,mpLng=null,mpCC='선착장',mpLeafletLoaded=false,mpRadius=5000;
+var CI={'선착장':'⛵','낚시점':'🎣','편의점':'🛒','화장실':'🚻','주차장':'🅿️','마트':'🛍️'};
+var OVERPASS={
+  '선착장':'["amenity"~"ferry_terminal|boat_rental|pier|dock"]',
+  '낚시점':'["shop"~"fishing|outdoor|sports"]',
+  '편의점':'["shop"~"convenience|kiosk"]',
+  '화장실':'["amenity"="toilets"]',
+  '주차장':'["amenity"="parking"]',
+  '마트':'["shop"~"supermarket|mall|department_store|wholesale|hypermarket"]'
+};
+
+function mpMakeIcon(color){
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="'+color+'"/><circle cx="12" cy="12" r="5" fill="white" opacity=".85"/></svg>';
+  return L.divIcon({html:svg,iconSize:[24,36],iconAnchor:[12,36],popupAnchor:[0,-36],className:''});
+}
+
+function hideMapOverlay(){
+  var ov=document.getElementById('mp-map-overlay');
+  if(ov)ov.style.display='none';
+}
+
+function showLocBox(addr,lat,lng){
+  var aEl=document.getElementById('mp-loc-addr');
+  var cEl=document.getElementById('mp-loc-coord');
+  if(aEl&&addr)aEl.textContent=addr;
+  if(cEl&&lat)cEl.textContent=lat.toFixed(5)+'°N  '+lng.toFixed(5)+'°E';
+}
+
+function reverseGeo(lat,lng){
+  showLocBox('주소 조회 중...',lat,lng);
+  fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+lat+'&lon='+lng+'&accept-language=ko',
+    {headers:{'User-Agent':'JUNS-app'}})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var a=d.address||{};
+    var parts=[a.city||a.town||a.county||a.state,a.suburb||a.neighbourhood||a.district,a.road||a.street].filter(Boolean);
+    showLocBox(parts.join(' ')||(d.display_name||'').split(',').slice(0,2).join('').trim()||'위치 확인됨',lat,lng);
+  })
+  .catch(function(){showLocBox('위치 확인됨',lat,lng);});
+}
+
+function mpLoadLeaflet(cb){
+  if(typeof L!=='undefined'){cb();return;}
+  if(mpLeafletLoaded){setTimeout(function(){mpLoadLeaflet(cb);},100);return;}
+  mpLeafletLoaded=true;
+  var s=document.createElement('script');
+  s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.onload=function(){cb();};
+  s.onerror=function(){
+    document.getElementById('mp-result').innerHTML=
+      '<div style="padding:14px;background:#FFF8F0;border:1px solid #E8C4A0;border-radius:6px;font-size:13px;color:#7A3008">지도 라이브러리 로드 실패. 인터넷 연결 확인 후 재시도</div>';
+  };
+  document.head.appendChild(s);
+}
+
+function mpInit(){
+  mpLoadLeaflet(function(){
+    var el=document.getElementById('kakao-map-el');
+    if(!el)return;
+    var lat=mpLat||35.228,lng=mpLng||128.681;
+    if(!mpMap){
+      mpMap=L.map('kakao-map-el',{zoomControl:true,attributionControl:false}).setView([lat,lng],mpLat?15:12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(mpMap);
+    } else {
+      mpMap.setView([lat,lng],mpLat?15:12);
+    }
+    setTimeout(function(){if(mpMap)mpMap.invalidateSize();},200);
+    if(mpLat){
+      mpPlaceMyMarker();
+      reverseGeo(mpLat,mpLng);
+      mpSearch();
+    }
+  });
+}
+
+function mpPageOpen(){mpInit();}
+
+function mpPlaceMyMarker(){
+  if(!mpLat||!mpMap)return;
+  if(mpMyMk)mpMyMk.remove();
+  mpMyMk=L.marker([mpLat,mpLng],{icon:mpMakeIcon('#D4365A')}).addTo(mpMap).bindPopup('현재 위치');
+}
+
+function mpReinitWithCoord(){
+  if(!mpLat)return;
+  if(!mpMap){mpInit();return;}
+  mpMap.setView([mpLat,mpLng],15);
+  mpPlaceMyMarker();
+  reverseGeo(mpLat,mpLng);
+  mpSearch();
+}
+
+function mpLocate(){
+  var btn=document.getElementById('mp-gps');
+  if(!navigator.geolocation){
+    mpLat=35.228;mpLng=128.681;
+    btn.textContent='📍 창원 기준';btn.classList.add('done');
+    showLocBox('경상남도 창원시 (기본 위치)',mpLat,mpLng);
+    mpReinitWithCoord();return;
+  }
+  btn.textContent='📍 위치 감지 중...';btn.classList.remove('done');btn.disabled=true;
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      mpLat=pos.coords.latitude;mpLng=pos.coords.longitude;
+      btn.textContent='📍 재검색';btn.classList.add('done');btn.disabled=false;
+      showLocBox('주소 조회 중...',mpLat,mpLng);
+      mpReinitWithCoord();
+    },
+    function(err){
+      btn.disabled=false;
+      if(err.code===1){
+        mpLat=35.228;mpLng=128.681;
+        btn.textContent='📍 창원 기준(권한없음)';btn.classList.add('done');
+        showLocBox('⚠️ 위치 권한 없음 — 창원 기준',mpLat,mpLng);
+        mpReinitWithCoord();
+      }else{
+        btn.textContent='📍 현위치 검색 시작';
+        document.getElementById('mp-result').innerHTML='<div style="padding:12px;background:#FFF8F0;border:1px solid #E8C4A0;border-radius:6px;font-size:13px;color:#7A3008">⏱ 위치 감지 실패. 다시 눌러주세요.</div>';
+      }
+    },
+    {timeout:10000,maximumAge:30000,enableHighAccuracy:true}
+  );
+}
+
+function setRadius(km){
+  mpRadius = km * 1000;
+  document.getElementById('rad-5').style.background  = km===5  ? '#A04C10' : 'var(--w)';
+  document.getElementById('rad-5').style.color        = km===5  ? '#FFF'    : '#A04C10';
+  document.getElementById('rad-10').style.background = km===10 ? '#A04C10' : 'var(--w)';
+  document.getElementById('rad-10').style.color       = km===10 ? '#FFF'    : '#A04C10';
+  if(mpLat && mpMap) mpSearch();
+}
+
+function mpCat(btn,cat){
+  document.querySelectorAll('.mcat').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on');mpCC=cat;
+  if(mpLat&&mpMap)mpSearch();
+}
+
+function haversine(lat1,lng1,lat2,lng2){
+  var R=6371000,d2r=Math.PI/180;
+  var dlat=(lat2-lat1)*d2r,dlng=(lng2-lng1)*d2r;
+  var a=Math.sin(dlat/2)*Math.sin(dlat/2)+Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dlng/2)*Math.sin(dlng/2);
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
+
+function mpSearch(){
+  if(!mpLat||!mpMap)return;
+  var tag=OVERPASS[mpCC]||'["shop"="convenience"]';
+  var q='[out:json][timeout:15];(node'+tag+'(around:'+(mpRadius)+','+mpLat+','+mpLng+');way'+tag+'(around:'+(mpRadius)+','+mpLat+','+mpLng+'););out center 20;';
+  document.getElementById('mp-result').innerHTML='<div style="padding:14px;text-align:center;color:#A04C10;font-size:13px">검색 중...</div>';
+  mpMks.forEach(function(m){m.remove();});mpMks=[];
+  fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:q})
+  .then(function(r){return r.json();})
+  .then(function(d){mpRender(d.elements||[]);})
+  .catch(function(){
+    document.getElementById('mp-result').innerHTML='<div style="padding:14px;text-align:center;color:var(--mu);font-size:13px">주변에 '+mpCC+' 없음<br><small style="font-size:11px">또는 네트워크 오류</small></div>';
+  });
+}
+
+function mpRender(els){
+  if(!els.length){
+    document.getElementById('mp-result').innerHTML='<div style="padding:14px;text-align:center;color:var(--mu);font-size:13px">주변 5km 내 '+mpCC+' 없음</div>';
+    return;
+  }
+  var icon=CI[mpCC]||'📍';
+  var items=els.map(function(e){
+    var lat=e.lat||(e.center&&e.center.lat)||0;
+    var lng=e.lon||(e.center&&e.center.lon)||0;
+    var name=(e.tags&&(e.tags.name||e.tags['name:ko']))||mpCC;
+    var dist=haversine(mpLat,mpLng,lat,lng);
+    var distStr=dist>=1000?(dist/1000).toFixed(1)+'km':dist+'m';
+    return{lat:lat,lng:lng,name:name,dist:dist,distStr:distStr};
+  }).filter(function(x){return x.lat&&x.lng;})
+    .sort(function(a,b){return a.dist-b.dist;})
+    .slice(0,10);
+
+  var html='<div class="mrbar"><div class="mrt">'+mpCC+' '+items.length+'곳</div><div class="mrn">반경 5km</div></div><div class="mlist">';
+  items.forEach(function(p,i){
+    var mk=L.marker([p.lat,p.lng],{icon:mpMakeIcon('#A04C10')}).addTo(mpMap).bindPopup(p.name);
+    mpMks.push(mk);
+    html+='<div class="mitem" onclick="mpFocus('+p.lat+','+p.lng+','+i+')">';
+    html+='<div class="mic">'+icon+'</div>';
+    html+='<div style="flex:1;min-width:0"><div class="mname">'+p.name+'</div></div>';
+    html+='<div class="mdist">'+p.distStr+'</div>';
+    html+='<button class="mnav" onclick="event.stopPropagation();mpNav('+p.lat+','+p.lng+')">길안내</button>';
+    html+='</div>';
+  });
+  html+='</div>';
+  document.getElementById('mp-result').innerHTML=html;
+
+  var bounds=L.latLngBounds([[mpLat,mpLng]]);
+  items.slice(0,5).forEach(function(p){bounds.extend([p.lat,p.lng]);});
+  mpMap.fitBounds(bounds,{padding:[20,20]});
+}
+
+function mpFocus(lat,lng,idx){
+  if(!mpMap)return;
+  mpMap.setView([lat,lng],17);
+  if(mpMks[idx])mpMks[idx].openPopup();
+  document.querySelector('.mbox').scrollIntoView({behavior:'smooth'});
+}
+function mpNav(lat,lng){window.open("https://maps.google.com/maps?q="+lat+","+lng,"_blank");}
+function mpOpenUrl(btn){var u=decodeURIComponent(btn.getAttribute('data-u')||'');if(u)window.open(u,'_blank');}
+// VERSION
+var APP_VERSION = 'v2.0.2';
+var RELEASE_NOTES = [
+  {v:'v1.9.3', d:'2026-04-13', c:[
+    '지도 컨테이너 크기 명시적 픽셀(px) 설정 - display:none 후유증 완전 차단',
+    'goPage map → 트리플 requestAnimationFrame (3프레임 후 렌더 보장)',
+    'GPS 성공 시 mpReinitWithCoord 통합 처리 (지도이동+검색+주소)',
+    'PWA 아이콘 고급 디자인으로 교체'
+  ]},
+  {v:'v1.9.2', d:'2026-04-13', c:[
+    '어종 방식 필터에서 타이라바 버튼 제거',
+    '주소 박스 항상 표시 (GPS 전에도 안내 문구)',
+    'GPS 성공 시 좌표 즉시 표시',
+    '지도 relayout 0·300·800ms 3회로 타일 렌더링 보장'
+  ]},
+  {v:'v1.9.1', d:'2026-04-13', c:[
+    '지도 초기화 완전 단순화 (오버레이 제거, 코드 최소화)',
+    'kakao 미정의 시 300ms 자동재시도',
+    'goPage map → setTimeout 200ms로 단순화'
+  ]},
+  {v:'v1.9.0', d:'2026-04-13', c:[
+    '정보바 기본 CSS 완전 복구 (모바일 4칸 grid 깨짐 수정)',
+    '@keyframes blink 복구',
+    '지도 SDK 로드 미완료 시 500ms 후 자동 재시도'
+  ]},
+  {v:'v1.8.7', d:'2026-04-11', c:[
+    '정보바 grid display:grid!important 강제 적용 (모바일 레이아웃 수정)',
+    '진단 패널 제거 (Kakao 도메인 등록 완료)',
+    'mpInit 간결화'
+  ]},
+  {v:'v1.8.6', d:'2026-04-11', c:[
+    '화면에 SDK/지도/Geocoder 진단 패널 추가',
+    'goPage map → requestAnimationFrame 적용',
+    'mpInit 단일 함수로 지도+주소 통합 처리'
+  ]},
+  {v:'v1.8.5', d:'2026-04-11', c:[
+    'SDK URL에서 geocoder 라이브러리 제거 (kakao API 미지원 → 지도 로드 실패 원인)',
+    'PC 정보바 grid:repeat(4,1fr) 강제 적용으로 레이아웃 복구',
+    '지도 컨테이너 크기 강제 설정 + 생성 후 relayout 100ms 추가',
+    'reverseGeo 매번 새 Geocoder 인스턴스 사용으로 안정화'
+  ]},
+  {v:'v1.8.4', d:'2026-04-11', c:[
+    'visibility 방식 폐기 → 더블 requestAnimationFrame으로 display:block 렌더 보장',
+    '사전 초기화 제거 → 탭 클릭 시 mpInit() 단일 진입점으로 정리',
+    'PC 레이아웃 640px·1024px 전면 확대'
+  ]},
+  {v:'v1.8.3', d:'2026-04-11', c:[
+    'PC 레이아웃 640px·1024px 전면 개선 (글씨·여백·지도 모두 확대)',
+    '편의시설 지도 PC에서 460·540px로 확대',
+    '도메인 체크 안내: Claude 미리보기에서 지도 미작동 안내 메시지'
+  ]},
+  {v:'v1.8.2', d:'2026-04-11', c:[
+    '지도 페이지 로드 시 미리 초기화 (탭 클릭 전에 생성)',
+    'PC/태블릿 640px·1024px 반응형 레이아웃 추가',
+    '편의시설 PC에서 지도 420·500px, 카테고리 아이콘 확대',
+    '물때·어종·주문 PC 글씨 크기 최적화'
+  ]},
+  {v:'v1.8.1', d:'2026-04-11', c:[
+    '지도 탭 display:none 대신 visibility 방식으로 전환 (렌더링 보장)',
+    'requestAnimationFrame으로 DOM 렌더 후 지도 생성 보장',
+    'GPS 완료 후 reverseGeo 300ms 딜레이로 Geocoder 안정화'
+  ]},
+  {v:'v1.8.0', d:'2026-04-11', c:[
+    '지도 SDK 정적 로드로 복귀 (동적 로드 CORS 오류 수정)',
+    'Geocoder SDK 방식으로 주소 조회 (REST API CORS 차단 우회)',
+    '지도 relayout 100·300·600ms 3회 보장',
+    'PWA 설치 UI 개선 - 안드로이드/iOS 각각 안내',
+    '바로가기 아이콘 갱신 (icon-192.png, icon-512.png)',
+    '서비스워커 캐시 버전 juns-v1.7.1 업데이트'
+  ]},
+  {v:'v1.7.2', d:'2026-04-11', c:[
+    '지도 SDK 동적 로드 방식 시도 (GitHub Pages에서 차단됨)',
+    '길안내 버튼 quote 에러 수정'
+  ]},
+  {v:'v1.7.1', d:'2026-04-11', c:[
+    '지도 초기화 재설계 mpBuildMap()',
+    'GPS 오류 처리 개선',
+    'JS SyntaxError 수정 (adjacent string)'
+  ]},
+  {v:'v1.7.0', d:'2026-04-11', c:[
+    '지도 초기화 방식 전면 재설계',
+    '현재위치 주소 박스 추가',
+    '역지오코딩 적용'
+  ]},
+  {v:'v1.6.2', d:'2026-04-11', c:[
+    '역지오코딩 개선',
+    'GPS 버튼 문구 단순화'
+  ]},
+  {v:'v1.5.0', d:'2026-04-10', d:'2026-04-10', c:[
+    '주문·물때·어종·편의시설 전체 글씨 대폭 확대 (노안 배려)',
+    '보조 텍스트·라벨·설명 모두 13~15px 이상으로 통일',
+    '물때 카드·숫자 크기 업, 편의시설 장소명·주소·거리 확대'
+  ]},
+  {v:'v1.4.0', d:'2026-04-10', c:[
+    '어종정보 전체 글씨 크기 대폭 확대 (노안 배려)',
+    '필터 버튼·월 버튼·어종명·설명·태그 모두 키움',
+    '물고기 이모지 24→36px, 월별 바 숫자 11px',
+    '카드 여백·간격 확대로 가독성 향상'
+  ]},
+  {v:'v1.3.0', d:'2026-04-10', c:[
+    '전체 밝은 라이트 테마로 전환',
+    '날짜/시간/날씨/물때 정보바 크림 배경 + Cormorant 이탤릭 폰트',
+    '제품 이미지 색연필 수중 일러스트로 교체',
+    '왜JUNS 섹션 밝은 배경 + 낚싯바늘·시계·3D프린터 색연필 SVG 아이콘',
+    '하단 네비 76px 확대 + Cormorant 이탤릭 라벨 + 색연필 필터',
+    '편의시설 지도 240→320px 확대',
+    '편의시설 카테고리 버튼 SVG 색연필 아이콘 (선착장·낚시점·편의점·화장실·주차장·마트)',
+    '편의시설 글씨 크기 전반 확대'
+  ]},
+  {v:'v1.2.0', d:'2026-04-10', c:[
+    '홈 Hero 섹션 밝은 크림 배경으로 변경',
+    '타이라바+참돔 색연필 스케치 일러스트 삽입',
+    '왜JUNS 섹션 배경 밝은 아이보리로 변경',
+    '스마트폰 반응형 최적화'
+  ]},
+  {v:'v1.1.0', d:'2026-04-09', c:[
+    'PWA 설치 배너 추가',
+    '하단 네비 씰 로고 + SVG 컬러 아이콘',
+    '홈 날짜·시간·날씨·물때 정보바 추가',
+    '메뉴별 페이지 배경색 차별화'
+  ]},
+  {v:'v1.0.0', d:'2026-04-09', c:[
+    'JUNS 쇼핑몰 최초 출시',
+    '주문·물때·어종·편의시설 4탭 통합 SPA',
+    '카카오맵 편의시설 검색 연동',
+    'Firebase 주문 연동'
+  ]},
+];
+var vEl = document.getElementById('ver-display');
+if(vEl) vEl.textContent = APP_VERSION + ' · 2026-04-11';
+
+// PWA
+
+// ── PWA 설치 ──
+var dP = null;
+var iBan  = document.getElementById('install-banner');
+var iBtn  = document.getElementById('install-btn');
+var iX    = document.getElementById('install-x');
+var pwaBtn = document.getElementById('pwa-install-btn');
+var androidGuide = document.getElementById('android-guide');
+var iosGuide     = document.getElementById('ios-guide');
+
+var isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+var isAndroid = /android/i.test(navigator.userAgent);
+var isChrome  = /chrome/i.test(navigator.userAgent) && !/edg/i.test(navigator.userAgent);
+var isSafari  = /safari/i.test(navigator.userAgent) && !/chrome/i.test(navigator.userAgent);
+var isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
+// 이미 설치된 경우 섹션 숨김
+if(isStandalone){
+  var ps = document.getElementById('pwa-install-section');
+  if(ps) ps.style.display = 'none';
+}
+
+// iOS 처리
+if(isIOS && !isStandalone){
+  if(iosGuide) iosGuide.style.display = 'block';
+  // 배너도 2초 후 표시
+  setTimeout(function(){
+    if(iBan){
+      iBan.innerHTML =
+        '<div style="flex:1">' +
+        '<div style="font-family:DM Mono,monospace;font-size:8px;letter-spacing:3px;color:rgba(184,150,90,.9);margin-bottom:4px">홈 화면에 추가</div>' +
+        '<div style="font-size:14px;font-family:Jost,sans-serif;color:#FFF;font-weight:500">아이폰 설치 방법</div>' +
+        '<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:2px">Safari → 공유(□↑) → 홈 화면에 추가</div>' +
+        '</div>' +
+        '<button id="icb" style="background:none;border:none;color:rgba(255,255,255,.4);font-size:24px;cursor:pointer;padding:0 8px;line-height:1">×</button>';
+      iBan.style.display = 'flex';
+      var icb = document.getElementById('icb');
+      if(icb) icb.onclick = function(){ iBan.style.display='none'; };
+    }
+  }, 1500);
+}
+
+// 안드로이드 Chrome 처리
+if(isAndroid && !isStandalone){
+  if(androidGuide) androidGuide.style.display = 'block';
+}
+
+// beforeinstallprompt (Chrome 안드로이드 자동 배너)
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  dP = e;
+  // 설치 버튼 표시
+  if(pwaBtn) pwaBtn.style.display = 'block';
+  if(androidGuide) androidGuide.style.display = 'none'; // 버튼 있으면 가이드 숨김
+  // 상단 배너
+  if(iBan){
+    iBan.style.display = 'flex';
+    // 5초 후 자동 닫기
+    setTimeout(function(){ if(iBan) iBan.style.display='none'; }, 8000);
+  }
+});
+
+function manualInstall(){
+  if(dP){
+    dP.prompt();
+    dP.userChoice.then(function(r){
+      dP = null;
+      if(iBan) iBan.style.display = 'none';
+      if(pwaBtn) pwaBtn.style.display = 'none';
+      if(r.outcome === 'accepted'){
+        var ps = document.getElementById('pwa-install-section');
+        if(ps) ps.innerHTML = '<div style="text-align:center;padding:10px;color:#3D7808;font-family:Jost,sans-serif;font-size:14px;font-weight:500">✓ 홈 화면에 추가됐습니다</div>';
+      }
+    });
+  } else if(isAndroid){
+    // deferredPrompt 없으면 수동 안내
+    if(androidGuide) androidGuide.style.display = 'block';
+    alert('Chrome 주소창 오른쪽 ⋮ 메뉴 → 홈 화면에 추가');
+  }
+}
+
+if(iBtn) iBtn.addEventListener('click', function(){ manualInstall(); });
+if(iX)   iX.addEventListener('click',   function(){ if(iBan) iBan.style.display='none'; });
+
+// Service Worker — GitHub Pages에서만 등록
+if('serviceWorker' in navigator && location.hostname !== 'www.claudeusercontent.com'){
+  navigator.serviceWorker.register('juns-sw.js').catch(function(){});
+}
+// 페이지 로드 후 지도 미리 초기화 (탭 클릭 전에 생성해두기)
+// 도메인 체크
+(function(){
+  var ok = location.hostname === 'juns9990.github.io' || location.hostname === 'localhost';
+  if(!ok){
+    var w = document.getElementById('mp-domain-warn');
+    if(w) w.style.display = 'block';
+  }
+})();
+
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    var lat = 35.228, lng = 128.681;
+    var el  = document.getElementById('kakao-map-el');
+    if(!el) return;
+    try {
+      var latlng = new kakao.maps.LatLng(lat, lng);
+      mpM  = new kakao.maps.Map(el, {center: latlng, level: 7});
+      mpPs = new kakao.maps.services.Places(mpM);
+      mpIW = new kakao.maps.InfoWindow({zIndex:1});
+      mpM.relayout();
+    } catch(e) {}
+  }, 500);
+});
+
+(function(){
+  var h=window.location.hash.replace('#','');
+  if(h==='order'||h==='tide'||h==='fish'||h==='map') goPage(h);
+})();
+</script>
+</body>
+</html>
